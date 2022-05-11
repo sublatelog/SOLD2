@@ -126,28 +126,17 @@ def set_random_seed(seed):
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", type=str, default="train",
-                        help="'train' or 'export'.")
-    parser.add_argument("--dataset_config", type=str, default=None,
-                        help="Path to the dataset config.")
-    parser.add_argument("--model_config", type=str, default=None,
-                        help="Path to the model config.")
-    parser.add_argument("--exp_name", type=str, default="exp",
-                        help="Experiment name.")
-    parser.add_argument("--resume", action="store_true", default=False,
-                        help="Load a previously trained model.")
-    parser.add_argument("--pretrained", action="store_true", default=False,
-                        help="Start training from a pre-trained model.")
-    parser.add_argument("--resume_path", default=None,
-                        help="Path from which to resume training.")
-    parser.add_argument("--pretrained_path", default=None,
-                        help="Path to the pre-trained model.")
-    parser.add_argument("--checkpoint_name", default=None,
-                        help="Name of the checkpoint to use.")
-    parser.add_argument("--export_dataset_mode", default=None,
-                        help="'train' or 'test'.")
-    parser.add_argument("--export_batch_size", default=4, type=int,
-                        help="Export batch size.")
+    parser.add_argument("--mode", type=str, default="train", help="'train' or 'export'.")
+    parser.add_argument("--dataset_config", type=str, default=None, help="Path to the dataset config.")
+    parser.add_argument("--model_config", type=str, default=None, help="Path to the model config.")
+    parser.add_argument("--exp_name", type=str, default="exp", help="Experiment name.")
+    parser.add_argument("--resume", action="store_true", default=False, help="Load a previously trained model.")
+    parser.add_argument("--pretrained", action="store_true", default=False, help="Start training from a pre-trained model.")
+    parser.add_argument("--resume_path", default=None, help="Path from which to resume training.")
+    parser.add_argument("--pretrained_path", default=None, help="Path to the pre-trained model.")
+    parser.add_argument("--checkpoint_name", default=None, help="Name of the checkpoint to use.")
+    parser.add_argument("--export_dataset_mode", default=None, help="'train' or 'test'.")
+    parser.add_argument("--export_batch_size", default=4, type=int, help="Export batch size.")
 
     args = parser.parse_args()
 
@@ -161,24 +150,24 @@ if __name__ == "__main__":
     # Check if dataset config and model config is given.
     if (((args.dataset_config is None) or (args.model_config is None))
         and (not args.resume) and (args.mode == "train")):
-        raise ValueError(
-            "[Error] The dataset config and model config should be given in non-resume mode")
+        raise ValueError("[Error] The dataset config and model config should be given in non-resume mode")
 
     # If resume, check if the resume path has been given
     if args.resume and (args.resume_path is None):
-        raise ValueError(
-            "[Error] Missing resume path.")
+        raise ValueError("[Error] Missing resume path.")
 
     # [Training] Load the config file.
     if args.mode == "train" and (not args.resume):
         # Check the pretrained checkpoint_path exists
         if args.pretrained:
             checkpoint_folder = args.resume_path
+            
             checkpoint_path = os.path.join(args.pretrained_path,
-                                           args.checkpoint_name)
+                                           args.checkpoint_name
+                                          )
+            
             if not os.path.exists(checkpoint_path):
-                raise ValueError("[Error] Missing checkpoint: "
-                                 + checkpoint_path)
+                raise ValueError("[Error] Missing checkpoint: " + checkpoint_path)
         dataset_cfg = load_config(args.dataset_config)
         model_cfg = load_config(args.model_config)       
 
@@ -187,6 +176,7 @@ if __name__ == "__main__":
         # Check checkpoint path exists
         checkpoint_folder = args.resume_path
         checkpoint_path = os.path.join(args.resume_path, args.checkpoint_name)
+        
         if not os.path.exists(checkpoint_path):
             raise ValueError("[Error] Missing checkpoint: " + checkpoint_path)
 
@@ -194,9 +184,10 @@ if __name__ == "__main__":
         if args.model_config is None:
             print("[Info] No model config provided. Loading from checkpoint folder.")
             model_cfg_path = os.path.join(checkpoint_folder, "model_cfg.yaml")
+            
             if not os.path.exists(model_cfg_path):
-                raise ValueError(
-                    "[Error] Missing model config in checkpoint path.")
+                raise ValueError("[Error] Missing model config in checkpoint path.")
+                
             model_cfg = load_config(model_cfg_path)
         else:
             model_cfg = load_config(args.model_config)
@@ -204,8 +195,7 @@ if __name__ == "__main__":
         # Load dataset_cfg from checkpoint folder if not provided
         if args.dataset_config is None:
             print("[Info] No dataset config provided. Loading from checkpoint folder.")
-            dataset_cfg_path = os.path.join(checkpoint_folder,
-                                            "dataset_cfg.yaml")
+            dataset_cfg_path = os.path.join(checkpoint_folder, "dataset_cfg.yaml")
             if not os.path.exists(dataset_cfg_path):
                 raise ValueError(
                     "[Error] Missing dataset config in checkpoint path.")
@@ -223,5 +213,9 @@ if __name__ == "__main__":
     seed = dataset_cfg.get("random_seed", 0)
     set_random_seed(seed)
 
-    main(args, dataset_cfg, model_cfg,
-         export_dataset_mode=args.export_dataset_mode, device=device)
+    main(args, 
+         dataset_cfg, 
+         model_cfg,
+         export_dataset_mode=args.export_dataset_mode, 
+         device=device
+        )
