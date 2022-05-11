@@ -65,8 +65,8 @@ class SyntheticShapes(Dataset):
     def __init__(self, mode="train", config=None):
         super(SyntheticShapes, self).__init__()
         if not mode in ["train", "val", "test"]:
-            raise ValueError(
-        "[Error] Supported dataset modes are 'train', 'val', and 'test'.")
+            raise ValueError("[Error] Supported dataset modes are 'train', 'val', and 'test'.")
+            
         self.mode = mode
 
         # Get configuration
@@ -120,14 +120,19 @@ class SyntheticShapes(Dataset):
         """ Dataset constructor. """
         # Check if the filename cache exists
         # If cache exists, load from cache
+        
         if self._check_dataset_cache():
             print("[Info]: Found filename cache at ...")
             print("\t Load filename cache...")
+            
             filename_dataset, datapoints = self.get_filename_dataset_from_cache()
+            
             print("\t Check if all file exists...")
+            
             # If all file exists, continue
             if self._check_file_existence(filename_dataset):
                 print("\t All files exist!")
+                
             # If not, need to re-export the synthetic dataset
             else:
                 print("\t Some files are missing. Re-export the synthetic shape dataset.")
@@ -142,6 +147,7 @@ class SyntheticShapes(Dataset):
         else:
             print("[Info]: Can't find filename cache ...")
             print("\t First check export dataset exists.")
+            
             # If export dataset exists, then just update the filename_dataset
             if self._check_export_dataset():
                 print("\t Synthetic dataset exists. Initialize the dataset ...")
@@ -157,112 +163,130 @@ class SyntheticShapes(Dataset):
             self.create_filename_dataset_cache(filename_dataset, datapoints)
 
         return filename_dataset, datapoints
+    
 
     def get_cache_name(self):
         """ Get cache name from dataset config / default config. """
+        
         if self.config["dataset_name"] is None:
             dataset_name = self.default_config["dataset_name"] + "_%s" % self.mode
         else:
             dataset_name = self.config["dataset_name"] + "_%s" % self.mode
+            
         # Compose cache name
         cache_name = dataset_name + "_cache.pkl"
 
         return cache_name
 
+    
     def get_dataset_name(self):
         """Get dataset name from dataset config / default config. """
+        
         if self.config["dataset_name"] is None:
             dataset_name = self.default_config["dataset_name"] + "_%s" % self.mode
         else:
             dataset_name = self.config["dataset_name"] + "_%s" % self.mode
 
         return dataset_name
+    
 
     def get_filename_dataset_from_cache(self):
         """ Get filename dataset from cache. """
+        
         # Load from the pkl cache
         cache_file_path = os.path.join(self.cache_path, self.cache_name)
+        
         with open(cache_file_path, "rb") as f:
             data = pickle.load(f)
 
         return data["filename_dataset"], data["datapoints"]
 
+    
     def get_filename_dataset(self):
         """ Get filename dataset from scratch. """
+        
         # Path to the exported dataset
-        dataset_path = os.path.join(cfg.synthetic_dataroot,
-                                    self.dataset_name + ".h5")
+        dataset_path = os.path.join(cfg.synthetic_dataroot, self.dataset_name + ".h5")
 
         filename_dataset = {}
         datapoints = []
+        
         # Open the h5 dataset
         with h5py.File(dataset_path, "r") as f:
-            # Iterate through all the primitives
+            
+            # Iterate through all the primitives            
             for prim_name in f.keys():
                 filenames = sorted(f[prim_name].keys())
-                filenames_full = [os.path.join(prim_name, _)
-                                  for _ in filenames]
+                filenames_full = [os.path.join(prim_name, _) for _ in filenames]
 
                 filename_dataset[prim_name] = filenames_full
                 datapoints += filenames_full
 
         return filename_dataset, datapoints
 
+    
     def create_filename_dataset_cache(self, filename_dataset, datapoints):
         """ Create filename dataset cache for faster initialization. """
+        
         # Check cache path exists
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
 
         cache_file_path = os.path.join(self.cache_path, self.cache_name)
+        
         data = {
-            "filename_dataset": filename_dataset,
-            "datapoints": datapoints
-        }
+                "filename_dataset": filename_dataset,
+                "datapoints": datapoints
+                }
+        
         with open(cache_file_path, "wb") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
+            
     def export_synthetic_shapes(self):
         """ Export synthetic shapes to disk. """
+        
         # Set the global random state for data generation
-        synthetic_util.set_random_state(np.random.RandomState(
-            self.config["generation"]["random_seed"]))
+        synthetic_util.set_random_state(np.random.RandomState(self.config["generation"]["random_seed"]))
 
         # Define the export path
-        dataset_path = os.path.join(cfg.synthetic_dataroot,
-                                    self.dataset_name + ".h5")
+        dataset_path = os.path.join(cfg.synthetic_dataroot, self.dataset_name + ".h5")
 
         # Open h5py file
         with h5py.File(dataset_path, "w", libver="latest") as f:
             # Iterate through all types of shape
-            primitives = self.parse_drawing_primitives(
-                self.config["primitives"])
+            primitives = self.parse_drawing_primitives(self.config["primitives"])
+            
             split_size = self.config["generation"]["split_sizes"][self.mode]
+            
             for prim in primitives:
                 # Create h5 group
                 group = f.create_group(prim)
+                
                 # Export single primitive
                 self.export_single_primitive(prim, split_size, group)
 
             f.swmr_mode = True
 
+            
     def export_single_primitive(self, primitive, split_size, group):
         """ Export single primitive. """
+        
         # Check if the primitive is valid or not
         if primitive not in self.available_primitives:
-            raise ValueError(
-        "[Error]: %s is not a supported primitive" % primitive)
+            raise ValueError("[Error]: %s is not a supported primitive" % primitive)
+            
         # Set the random seed
-        synthetic_util.set_random_state(np.random.RandomState(
-            self.config["generation"]["random_seed"]))
+        synthetic_util.set_random_state(np.random.RandomState(self.config["generation"]["random_seed"]))
 
         # Generate shapes
         print("\t Generating %s ..." % primitive)
         for idx in tqdm(range(split_size), ascii=True):
             # Generate background image
             image = synthetic_util.generate_background(
-                self.config['generation']['image_size'],
-                **self.config['generation']['params']['generate_background'])
+                                                       self.config['generation']['image_size'], 
+                                                       **self.config['generation']['params']['generate_background']
+                                                       )
 
             # Generate points
             drawing_func = getattr(synthetic_util, primitive)
@@ -273,14 +297,29 @@ class SyntheticShapes(Dataset):
             min_label_len = self.config["generation"]["min_label_len"]
 
             # Some only take min_label_len, and gaussian noises take nothing
-            if primitive in ["draw_lines", "draw_polygon",
-                             "draw_multiple_polygons", "draw_star"]:
-                data = drawing_func(image, min_len=min_len,
-                                    min_label_len=min_label_len, **kwarg)
+            if primitive in ["draw_lines", 
+                             "draw_polygon",
+                             "draw_multiple_polygons", 
+                             "draw_star"
+                            ]:
+                
+                data = drawing_func(
+                                    image, 
+                                    min_len=min_len,
+                                    min_label_len=min_label_len, 
+                                    **kwarg
+                                   )
+                
             elif primitive in ["draw_checkerboard_multiseg",
-                               "draw_stripes_multiseg", "draw_cube"]:
-                data = drawing_func(image, min_label_len=min_label_len,
-                                    **kwarg)
+                               "draw_stripes_multiseg", 
+                               "draw_cube"
+                              ]:
+                
+                data = drawing_func(
+                                    image, 
+                                    min_label_len=min_label_len,
+                                    **kwarg
+                                    )
             else:
                 data = drawing_func(image, **kwarg)
 
@@ -298,38 +337,59 @@ class SyntheticShapes(Dataset):
 
             # Resize the image and the point location.
             points = (points
-                      * np.array(self.config['preprocessing']['resize'],
-                                 np.float)
-                      / np.array(self.config['generation']['image_size'],
-                                 np.float))
+                      * np.array(self.config['preprocessing']['resize'], np.float)
+                      / np.array(self.config['generation']['image_size'], np.float)
+                     )
+            
             image = cv2.resize(
-                image, tuple(self.config['preprocessing']['resize'][::-1]),
-                interpolation=cv2.INTER_LINEAR)
+                              image, 
+                              tuple(self.config['preprocessing']['resize'][::-1]),
+                              interpolation=cv2.INTER_LINEAR
+                              )
+            
             image = np.array(image, dtype=np.uint8)
 
             # Generate the line heatmap after post-processing
             junctions = np.flip(np.round(points).astype(np.int32), axis=1)
+            
             heatmap = (synthetic_util.get_line_heatmap(
-                junctions, line_map,
-                size=image.shape) * 255.).astype(np.uint8)
+                                                      junctions, 
+                                                      line_map,
+                                                      size=image.shape
+                                                      ) * 255.
+                       ).astype(np.uint8)
 
             # Record the data in group
             num_pad = math.ceil(math.log10(split_size)) + 1
+            
             file_key_name = self.get_padded_filename(num_pad, idx)
+            
             file_group = group.create_group(file_key_name)
 
             # Store data
-            file_group.create_dataset("points", data=points,
-                                      compression="gzip")
-            file_group.create_dataset("image", data=image,
-                                      compression="gzip")
-            file_group.create_dataset("line_map", data=line_map,
-                                      compression="gzip")
-            file_group.create_dataset("heatmap", data=heatmap,
-                                      compression="gzip")
+            file_group.create_dataset("points", 
+                                      data=points,
+                                      compression="gzip"
+                                     )
+            
+            file_group.create_dataset("image", 
+                                      data=image,
+                                      compression="gzip"
+                                     )
+            
+            file_group.create_dataset("line_map", 
+                                      data=line_map,
+                                      compression="gzip"
+                                     )
+            
+            file_group.create_dataset("heatmap", 
+                                      data=heatmap,
+                                      compression="gzip"
+                                     )
 
     def get_default_config(self):
         """ Get default configuration of the dataset. """
+        
         # Initialize the default configuration
         self.default_config = {
             "dataset_name": "synthetic_shape",
@@ -344,8 +404,11 @@ class SyntheticShapes(Dataset):
                 "min_label_len": 0.1,
                 'params': {
                     'generate_background': {
-                        'min_kernel_size': 150, 'max_kernel_size': 500,
-                        'min_rad_ratio': 0.02, 'max_rad_ratio': 0.031},
+                        'min_kernel_size': 150, 
+                        'max_kernel_size': 500,
+                        'min_rad_ratio': 0.02, 
+                        'max_rad_ratio': 0.031
+                    },
                     'draw_stripes': {'transform_params': (0.1, 0.1)},
                     'draw_multiple_polygons': {'kernel_boundaries': (50, 100)}
                 },
@@ -371,6 +434,7 @@ class SyntheticShapes(Dataset):
         }
 
         return self.default_config
+    
 
     def parse_drawing_primitives(self, names):
         """ Parse the primitives in config to list of primitive names. """
