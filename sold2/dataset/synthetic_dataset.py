@@ -26,22 +26,32 @@ from ..misc.train_utils import parse_h5_data
 
 def synthetic_collate_fn(batch):
     """ Customized collate_fn. """
-    batch_keys = ["image", "junction_map", "heatmap",
-                  "valid_mask", "homography"]
+    
+    batch_keys = [
+                  "image", 
+                  "junction_map", 
+                  "heatmap",
+                  "valid_mask", 
+                  "homography"
+                 ]
+    
     list_keys = ["junctions", "line_map", "file_key"]
 
     outputs = {}
     for data_key in batch[0].keys():
         batch_match = sum([_ in data_key for _ in batch_keys])
         list_match = sum([_ in data_key for _ in list_keys])
+        
         # print(batch_match, list_match)
         if batch_match > 0 and list_match == 0:
-            outputs[data_key] = torch_loader.default_collate([b[data_key]
-                                                             for b in batch])
+            outputs[data_key] = torch_loader.default_collate([b[data_key] for b in batch])
+            
         elif batch_match == 0 and list_match > 0:
             outputs[data_key] = [b[data_key] for b in batch]
+            
         elif batch_match == 0 and list_match == 0:
             continue
+            
         else:
             raise ValueError(
         "[Error] A key matches batch keys and list keys simultaneously.")
@@ -67,20 +77,21 @@ class SyntheticShapes(Dataset):
 
         # Set all available primitives
         self.available_primitives = [
-            'draw_lines',
-            'draw_polygon',
-            'draw_multiple_polygons',
-            'draw_star',
-            'draw_checkerboard_multiseg',
-            'draw_stripes_multiseg',
-            'draw_cube',
-            'gaussian_noise'
-        ]
+                                    'draw_lines',
+                                    'draw_polygon',
+                                    'draw_multiple_polygons',
+                                    'draw_star',
+                                    'draw_checkerboard_multiseg',
+                                    'draw_stripes_multiseg',
+                                    'draw_cube',
+                                    'gaussian_noise'
+                                    ]
 
         # Some cache setting
         self.dataset_name = self.get_dataset_name()
         self.cache_name = self.get_cache_name()
         self.cache_path = cfg.synthetic_cache_path
+        
 
         # Check if export dataset exists
         print("===============================================")
@@ -91,15 +102,17 @@ class SyntheticShapes(Dataset):
         self.dataset_path = os.path.join(cfg.synthetic_dataroot, self.dataset_name + ".h5")
         
         # Fix the random seed for torch and numpy in testing mode
-        if ((self.mode == "val" or self.mode == "test")
-            and self.config["add_augmentation_to_all_splits"]):
+        if ((self.mode == "val" or self.mode == "test") and self.config["add_augmentation_to_all_splits"]):
             seed = self.config.get("test_augmentation_seed", 200)
+            
             np.random.seed(seed)
             torch.manual_seed(seed)
+            
             # For CuDNN
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
+            
     ##########################################
     ## Dataset construction related methods ##
     ##########################################
