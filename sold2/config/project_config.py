@@ -27,8 +27,10 @@ class Config(object):
         os.makedirs(export_dataroot)
     
     # Wireframe dataset
-    wireframe_dataroot = os.path.join(DATASET_ROOT, "wireframe")
-    wireframe_cache_path = os.path.join(DATASET_ROOT, "wireframe")
+    wireframe_dataroot = os.path.join(DATASET_ROOT, "")
+    wireframe_cache_path = os.path.join(DATASET_ROOT, "")
+#     wireframe_dataroot = os.path.join(DATASET_ROOT, "wireframe")
+#     wireframe_cache_path = os.path.join(DATASET_ROOT, "wireframe")
 
     # Holicity dataset
     holicity_dataroot = os.path.join(DATASET_ROOT, "Holicity")
