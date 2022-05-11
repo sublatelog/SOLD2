@@ -27,6 +27,7 @@ def customized_collate_fn(batch):
     outputs = {}
     for key in batch_keys:
         outputs[key] = torch_loader.default_collate([b[key] for b in batch])
+        
     for key in list_keys:
         outputs[key] = [b[key] for b in batch]
 
@@ -35,30 +36,36 @@ def customized_collate_fn(batch):
 
 def restore_weights(model, state_dict, strict=True):
     """ Restore weights in compatible mode. """
+    
     # Try to directly load state dict
     try:
         model.load_state_dict(state_dict, strict=strict)
+        
     # Deal with some version compatibility issue (catch version incompatible)
     except:
         err = model.load_state_dict(state_dict, strict=False)
         
         # missing keys are those in model but not in state_dict
         missing_keys = err.missing_keys
+        
         # Unexpected keys are those in state_dict but not in model
         unexpected_keys = err.unexpected_keys
 
         # Load mismatched keys manually
         model_dict = model.state_dict()
+        
         for idx, key in enumerate(missing_keys):
             dict_keys = [_ for _ in unexpected_keys if not "tracked" in _]
             model_dict[key] = state_dict[dict_keys[idx]]
+            
         model.load_state_dict(model_dict)
     
     return model
 
-
+# experiment.py:__main__ > main > train > train_net
 def train_net(args, dataset_cfg, model_cfg, output_path):
     """ Main training function. """
+    
     # Add some version compatibility check
     if model_cfg.get("weighting_policy") is None:
         # Default to static
@@ -77,13 +84,17 @@ def train_net(args, dataset_cfg, model_cfg, output_path):
     train_loader = DataLoader(train_dataset,
                               batch_size=train_cfg["batch_size"],
                               num_workers=8,
-                              shuffle=True, pin_memory=True,
+                              shuffle=True, 
+                              pin_memory=True,
                               collate_fn=train_collate_fn)
+    
     test_loader = DataLoader(test_dataset,
                              batch_size=test_cfg.get("batch_size", 1),
                              num_workers=test_cfg.get("num_workers", 1),
-                             shuffle=False, pin_memory=False,
+                             shuffle=False, 
+                             pin_memory=False,
                              collate_fn=test_collate_fn)
+    
     print("\t Successfully intialized dataloaders.")
 
 
@@ -93,68 +104,98 @@ def train_net(args, dataset_cfg, model_cfg, output_path):
     # If resume.
     if args.resume:
         # Create model and load the state dict
-        checkpoint = get_latest_checkpoint(args.resume_path,
-                                           args.checkpoint_name)
+        checkpoint = get_latest_checkpoint(
+                                           args.resume_path,
+                                           args.checkpoint_name
+                                           )
+        
         model = get_model(model_cfg, loss_weights)
         model = restore_weights(model, checkpoint["model_state_dict"])
         model = model.cuda()
+        
         optimizer = torch.optim.Adam(
-            [{"params": model.parameters(),
-              "initial_lr": model_cfg["learning_rate"]}], 
-            model_cfg["learning_rate"], 
-            amsgrad=True)
+                                    [{"params": model.parameters(), "initial_lr": model_cfg["learning_rate"]}], 
+                                    model_cfg["learning_rate"], 
+                                    amsgrad=True
+                                    )
+        
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        
         # Optionally get the learning rate scheduler
         scheduler = get_lr_scheduler(
-            lr_decay=model_cfg.get("lr_decay", False),
-            lr_decay_cfg=model_cfg.get("lr_decay_cfg", None),
-            optimizer=optimizer)
+                                    lr_decay=model_cfg.get("lr_decay", False),
+                                    lr_decay_cfg=model_cfg.get("lr_decay_cfg", None),
+                                    optimizer=optimizer
+                                    )
+        
         # If we start to use learning rate scheduler from the middle
-        if ((scheduler is not None)
-            and (checkpoint.get("scheduler_state_dict", None) is not None)):
+        if ((scheduler is not None) and (checkpoint.get("scheduler_state_dict", None) is not None)):
             scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            
         start_epoch = checkpoint["epoch"] + 1
+        
+        
     # Initialize all the components.
     else:
         # Create model and optimizer
         model = get_model(model_cfg, loss_weights)
+        
         # Optionally get the pretrained wieghts
         if args.pretrained:
             print("\t [Debug] Loading pretrained weights...")
-            checkpoint = get_latest_checkpoint(args.pretrained_path,
-                                               args.checkpoint_name)
+            
+            checkpoint = get_latest_checkpoint(
+                                               args.pretrained_path,
+                                               args.checkpoint_name
+                                              )
+            
             # If auto weighting restore from non-auto weighting
-            model = restore_weights(model, checkpoint["model_state_dict"],
-                                    strict=False)
+            model = restore_weights(
+                                    model, 
+                                    checkpoint["model_state_dict"],
+                                    strict=False
+                                    )
+            
             print("\t [Debug] Finished loading pretrained weights!")
         
         model = model.cuda()
+        
         optimizer = torch.optim.Adam(
-            [{"params": model.parameters(),
-              "initial_lr": model_cfg["learning_rate"]}], 
-            model_cfg["learning_rate"], 
-            amsgrad=True)
+                                      [{"params": model.parameters(), "initial_lr": model_cfg["learning_rate"]}], 
+                                      model_cfg["learning_rate"], 
+                                      amsgrad=True
+                                    )
+        
         # Optionally get the learning rate scheduler
         scheduler = get_lr_scheduler(
-            lr_decay=model_cfg.get("lr_decay", False),
-            lr_decay_cfg=model_cfg.get("lr_decay_cfg", None),
-            optimizer=optimizer)
+                                    lr_decay=model_cfg.get("lr_decay", False),
+                                    lr_decay_cfg=model_cfg.get("lr_decay_cfg", None),
+                                    optimizer=optimizer
+                                    )
+        
         start_epoch = 0
     
     print("\t Successfully initialized model")
 
     # Define the total loss
     policy = model_cfg.get("weighting_policy", "static")
+    
     loss_func = TotalLoss(loss_funcs, loss_weights, policy).cuda()
+    
     if "descriptor_decoder" in model_cfg:
-        metric_func = Metrics(model_cfg["detection_thresh"],
+        metric_func = Metrics(
+                              model_cfg["detection_thresh"],
                               model_cfg["prob_thresh"],
                               model_cfg["descriptor_loss_cfg"]["grid_size"],
-                              desc_metric_lst='all')
+                              desc_metric_lst='all'
+                             )
+        
     else:
-        metric_func = Metrics(model_cfg["detection_thresh"],
+        metric_func = Metrics(
+                              model_cfg["detection_thresh"],
                               model_cfg["prob_thresh"],
-                              model_cfg["grid_size"])
+                              model_cfg["grid_size"]
+                              )
 
     # Define the summary writer
     logdir = os.path.join(output_path, "log")
@@ -169,55 +210,71 @@ def train_net(args, dataset_cfg, model_cfg, output_path):
         # Train for one epochs
         print("\n\n================== Training ====================")
         train_single_epoch(
-            model=model,
-            model_cfg=model_cfg,
-            optimizer=optimizer,
-            loss_func=loss_func,
-            metric_func=metric_func,
-            train_loader=train_loader,
-            writer=writer,
-            epoch=epoch)
+                            model=model,
+                            model_cfg=model_cfg,
+                            optimizer=optimizer,
+                            loss_func=loss_func,
+                            metric_func=metric_func,
+                            train_loader=train_loader,
+                            writer=writer,
+                            epoch=epoch
+                          )
 
         # Do the validation
         print("\n\n================== Validation ==================")
         validate(
-            model=model,
-            model_cfg=model_cfg,
-            loss_func=loss_func,
-            metric_func=metric_func,
-            val_loader=test_loader,
-            writer=writer,
-            epoch=epoch)
+                model=model,
+                model_cfg=model_cfg,
+                loss_func=loss_func,
+                metric_func=metric_func,
+                val_loader=test_loader,
+                writer=writer,
+                epoch=epoch
+                )
 
         # Update the scheduler
         if scheduler is not None:
             scheduler.step()
 
         # Save checkpoints
-        file_name = os.path.join(output_path,
-                                 "checkpoint-epoch%03d-end.tar"%(epoch))
+        file_name = os.path.join(output_path, "checkpoint-epoch%03d-end.tar"%(epoch))
         print("[Info] Saving checkpoint %s ..." % file_name)
+        
         save_dict = {
-            "epoch": epoch,
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "model_cfg": model_cfg}
+                    "epoch": epoch,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "model_cfg": model_cfg
+                    }
+        
         if scheduler is not None:
             save_dict.update({"scheduler_state_dict": scheduler.state_dict()})
+            
         torch.save(save_dict, file_name)
 
         # Remove the outdated checkpoints
         remove_old_checkpoints(output_path, model_cfg.get("max_ckpt", 15))
 
 
-def train_single_epoch(model, model_cfg, optimizer, loss_func, metric_func,
-                       train_loader, writer, epoch):
+def train_single_epoch(
+                       model, 
+                       model_cfg, 
+                       optimizer, 
+                       loss_func, 
+                       metric_func,
+                       train_loader, 
+                       writer, 
+                       epoch
+                      ):
+  
     """ Train for one epoch. """
+    
     # Switch the model to training mode
     model.train()
 
     # Initialize the average meter
     compute_descriptors = loss_func.compute_descriptors
+    
     if compute_descriptors:
         average_meter = AverageMeter(is_training=True, desc_metric_lst='all')
     else:
@@ -244,11 +301,24 @@ def train_single_epoch(model, model_cfg, optimizer, loss_func, metric_func,
 
             # Compute losses
             losses = loss_func.forward_descriptors(
-                outputs["junctions"], outputs2["junctions"],
-                junc_map, junc_map2, outputs["heatmap"], outputs2["heatmap"],
-                heatmap, heatmap2, line_points, line_points2,
-                line_indices, outputs['descriptors'], outputs2['descriptors'],
-                epoch, valid_mask, valid_mask2)
+                                                    outputs["junctions"], 
+                                                    outputs2["junctions"],
+                                                    junc_map, 
+                                                    junc_map2, 
+                                                    outputs["heatmap"], 
+                                                    outputs2["heatmap"],
+                                                    heatmap, 
+                                                    heatmap2, 
+                                                    line_points, 
+                                                    line_points2,
+                                                    line_indices, 
+                                                    outputs['descriptors'], 
+                                                    outputs2['descriptors'],
+                                                    epoch, 
+                                                    valid_mask, 
+                                                    valid_mask2
+                                                  )
+            
         else:
             junc_map = data["junction_map"].cuda()
             heatmap = data["heatmap"].cuda()
@@ -260,9 +330,12 @@ def train_single_epoch(model, model_cfg, optimizer, loss_func, metric_func,
 
             # Compute losses
             losses = loss_func(
-                outputs["junctions"], junc_map,
-                outputs["heatmap"], heatmap,
-                valid_mask)
+                              outputs["junctions"], 
+                              junc_map,
+                              outputs["heatmap"], 
+                              heatmap,
+                              valid_mask
+                              )
         
         total_loss = losses["total_loss"]
 
@@ -273,19 +346,24 @@ def train_single_epoch(model, model_cfg, optimizer, loss_func, metric_func,
 
         # Compute the global step
         global_step = epoch * len(train_loader) + idx
+        
+        
         ############## Measure the metric error #########################
         # Only do this when needed
-        if (((idx % model_cfg["disp_freq"]) == 0)
-            or ((idx % model_cfg["summary_freq"]) == 0)):
+        if (((idx % model_cfg["disp_freq"]) == 0) or ((idx % model_cfg["summary_freq"]) == 0)):
+          
             junc_np = convert_junc_predictions(
-                outputs["junctions"], model_cfg["grid_size"],
-                model_cfg["detection_thresh"], 300)
+                                                outputs["junctions"], 
+                                                model_cfg["grid_size"],
+                                                model_cfg["detection_thresh"], 
+                                                300
+                                              )
+            
             junc_map_np = junc_map.cpu().numpy().transpose(0, 2, 3, 1)
 
             # Always fetch only one channel (compatible with L1, L2, and CE)
             if outputs["heatmap"].shape[1] == 2:
-                heatmap_np = softmax(outputs["heatmap"].detach(),
-                                     dim=1).cpu().numpy()
+                heatmap_np = softmax(outputs["heatmap"].detach(), dim=1).cpu().numpy()
                 heatmap_np = heatmap_np.transpose(0, 2, 3, 1)[:, :, :, 1:]
             else:
                 heatmap_np = torch.sigmoid(outputs["heatmap"].detach())
@@ -297,26 +375,48 @@ def train_single_epoch(model, model_cfg, optimizer, loss_func, metric_func,
             # Evaluate metric results
             if compute_descriptors:
                 metric_func.evaluate(
-                    junc_np["junc_pred"], junc_np["junc_pred_nms"],
-                    junc_map_np, heatmap_np, heatmap_gt_np, valid_mask_np,
-                    line_points, line_points2, outputs["descriptors"],
-                    outputs2["descriptors"], line_indices)
+                                    junc_np["junc_pred"], 
+                                    junc_np["junc_pred_nms"],
+                                    junc_map_np, 
+                                    heatmap_np, 
+                                    heatmap_gt_np, 
+                                    valid_mask_np,
+                                    line_points, 
+                                    line_points2, 
+                                    outputs["descriptors"],
+                                    outputs2["descriptors"], 
+                                    line_indices
+                                    )
+                
             else:
                 metric_func.evaluate(
-                    junc_np["junc_pred"], junc_np["junc_pred_nms"],
-                    junc_map_np, heatmap_np, heatmap_gt_np, valid_mask_np)
+                                    junc_np["junc_pred"], 
+                                    junc_np["junc_pred_nms"],
+                                    junc_map_np, 
+                                    heatmap_np, 
+                                    heatmap_gt_np, 
+                                    valid_mask_np
+                                    )
+                
             # Update average meter
             junc_loss = losses["junc_loss"].item()
             heatmap_loss = losses["heatmap_loss"].item()
+            
             loss_dict = {
-                "junc_loss": junc_loss,
-                "heatmap_loss": heatmap_loss,
-                "total_loss": total_loss.item()}
+                          "junc_loss": junc_loss,
+                          "heatmap_loss": heatmap_loss,
+                          "total_loss": total_loss.item()
+                        }
+            
             if compute_descriptors:
                 descriptor_loss = losses["descriptor_loss"].item()
                 loss_dict["descriptor_loss"] = losses["descriptor_loss"].item()
 
-            average_meter.update(metric_func, loss_dict, num_samples=junc_map.shape[0])
+            average_meter.update(
+                                  metric_func, 
+                                  loss_dict, 
+                                  num_samples=junc_map.shape[0]
+                                )
 
         # Display the progress
         if (idx % model_cfg["disp_freq"]) == 0:
