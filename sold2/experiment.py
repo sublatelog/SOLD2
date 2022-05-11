@@ -41,6 +41,7 @@ def update_config(path, model_cfg=None, dataset_cfg=None):
     with open(os.path.join(path, "model_cfg.yaml"), "r") as f:
         model_cfg_saved = yaml.safe_load(f)
         model_cfg.update(model_cfg_saved)
+        
     with open(os.path.join(path, "dataset_cfg.yaml"), "r") as f:
         dataset_cfg_saved = yaml.safe_load(f)
         dataset_cfg.update(dataset_cfg_saved)
@@ -49,6 +50,7 @@ def update_config(path, model_cfg=None, dataset_cfg=None):
     if not model_cfg == model_cfg_saved:
         with open(os.path.join(path, "model_cfg.yaml"), "w") as f:
             yaml.dump(model_cfg, f)
+            
     if not dataset_cfg == dataset_cfg_saved:
         with open(os.path.join(path, "dataset_cfg.yaml"), "w") as f:
             yaml.dump(dataset_cfg, f)
@@ -96,8 +98,13 @@ def export(args, dataset_cfg, model_cfg, output_path,
                            export_dataset_mode)
 
 
-def main(args, dataset_cfg, model_cfg, export_dataset_mode=None,
-         device=torch.device("cuda")):
+def main(args, 
+         dataset_cfg, 
+         model_cfg, 
+         export_dataset_mode=None,
+         device=torch.device("cuda")
+        ):
+    
     """ Main function. """
     # Make the output path
     output_path = os.path.join(cfg.EXP_PATH, args.exp_name)
@@ -108,12 +115,14 @@ def main(args, dataset_cfg, model_cfg, export_dataset_mode=None,
         print("[Info] Training mode")
         print("\t Output path: %s" % output_path)
         train(args, dataset_cfg, model_cfg, output_path)
+        
     elif args.mode == "export":
         # Different output_path in export mode
         output_path = os.path.join(cfg.export_dataroot, args.exp_name)
         print("[Info] Export mode")
         print("\t Output path: %s" % output_path)
         export(args, dataset_cfg, model_cfg, output_path, export_dataset_mode, device=device)
+        
     else:
         raise ValueError("[Error]: Unknown mode: " + args.mode)
 
@@ -144,6 +153,7 @@ if __name__ == "__main__":
     # Get the model
     if torch.cuda.is_available():
         device = torch.device("cuda")
+        
     else:
         device = torch.device("cpu")
 
@@ -162,12 +172,14 @@ if __name__ == "__main__":
         if args.pretrained:
             checkpoint_folder = args.resume_path
             
-            checkpoint_path = os.path.join(args.pretrained_path,
+            checkpoint_path = os.path.join(
+                                           args.pretrained_path,
                                            args.checkpoint_name
                                           )
             
             if not os.path.exists(checkpoint_path):
                 raise ValueError("[Error] Missing checkpoint: " + checkpoint_path)
+                
         dataset_cfg = load_config(args.dataset_config)
         model_cfg = load_config(args.model_config)       
 
@@ -197,15 +209,17 @@ if __name__ == "__main__":
             print("[Info] No dataset config provided. Loading from checkpoint folder.")
             dataset_cfg_path = os.path.join(checkpoint_folder, "dataset_cfg.yaml")
             if not os.path.exists(dataset_cfg_path):
-                raise ValueError(
-                    "[Error] Missing dataset config in checkpoint path.")
+                raise ValueError("[Error] Missing dataset config in checkpoint path.")
+                
             dataset_cfg = load_config(dataset_cfg_path)
+            
         else:
             dataset_cfg = load_config(args.dataset_config)
         
         # Check the --export_dataset_mode flag
         if (args.mode == "export") and (args.export_dataset_mode is None):
             raise ValueError("[Error] Empty --export_dataset_mode flag.")
+            
     else:
         raise ValueError("[Error] Unknown mode: " + args.mode)
     
