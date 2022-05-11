@@ -122,46 +122,63 @@ def export_predictions(args, dataset_cfg, model_cfg, output_path,
                 filename_idx += 1
 
 
-def export_homograpy_adaptation(args, dataset_cfg, model_cfg, output_path,
-                                export_dataset_mode, device):
+def export_homograpy_adaptation(args, 
+                                dataset_cfg, 
+                                model_cfg, 
+                                output_path,
+                                export_dataset_mode, 
+                                device
+                               ):
+    
     """ Export homography adaptation results. """
+    
     # Check if the export_dataset_mode is supported
     supported_modes = ["train", "test"]
     if not export_dataset_mode in supported_modes:
-        raise ValueError(
-            "[Error] The specified export_dataset_mode is not supported.")
+        raise ValueError("[Error] The specified export_dataset_mode is not supported.")
 
     # Get the test configuration
     test_cfg = model_cfg["test"]
 
     # Get the homography adaptation configurations
     homography_cfg = dataset_cfg.get("homography_adaptation", None)
+    
     if homography_cfg is None:
-        raise ValueError(
-            "[Error] Empty homography_adaptation entry in config.")
+        raise ValueError("[Error] Empty homography_adaptation entry in config.")
 
     # Create the dataset and dataloader based on the export_dataset_mode
     print("\t Initializing dataset and dataloader")
     batch_size = args.export_batch_size
 
     export_dataset, collate_fn = get_dataset(export_dataset_mode, dataset_cfg)
-    export_loader = DataLoader(export_dataset, batch_size=batch_size,
+    
+    export_loader = DataLoader(export_dataset, 
+                               batch_size=batch_size,
                                num_workers=test_cfg.get("num_workers", 4),
-                               shuffle=False, pin_memory=False,
-                               collate_fn=collate_fn)
+                               shuffle=False, 
+                               pin_memory=False,
+                               collate_fn=collate_fn
+                              )
+    
     print("\t Successfully intialized dataset and dataloader.")
 
-    # Initialize model and load the checkpoint
+    # Initialize model and load the checkpoint ---------- ---------- ---------- ---------- ---------- ----------
     model = get_model(model_cfg, mode="test")
-    checkpoint = get_latest_checkpoint(args.resume_path, args.checkpoint_name,
-                                       device)
+    
+    checkpoint = get_latest_checkpoint(args.resume_path, 
+                                       args.checkpoint_name,
+                                       device
+                                      )
+    
     model = restore_weights(model, checkpoint["model_state_dict"])
     model = model.to(device).eval()
     print("\t Successfully initialized model")
 
     # Start the export process
     print("[Info] Start exporting predictions")    
+    
     output_dataset_path = output_path + ".h5"
+    
     with h5py.File(output_dataset_path, "w", libver="latest") as f:
         f.swmr_mode=True
         for _, data in enumerate(tqdm(export_loader, ascii=True)):
@@ -169,10 +186,13 @@ def export_homograpy_adaptation(args, dataset_cfg, model_cfg, output_path,
             file_keys = data["file_key"]
             batch_size = input_images.shape[0]
             
-            # Run the homograpy adaptation
-            outputs = homography_adaptation(input_images, model,
+            # Run the homograpy adaptation ---------- ---------- ---------- ---------- ---------- ----------
+            outputs = homography_adaptation(
+                                            input_images, 
+                                            model,
                                             model_cfg["grid_size"],
-                                            homography_cfg)
+                                            homography_cfg
+                                            )
 
             # Save the entries
             for batch_idx in range(batch_size):
@@ -190,9 +210,13 @@ def export_homograpy_adaptation(args, dataset_cfg, model_cfg, output_path,
 
                 # Create group and write data
                 f_group = f.create_group(save_key)
+                
                 for key, output_data in output_data.items():
-                    f_group.create_dataset(key, data=output_data,
-                                           compression="gzip")
+                    f_group.create_dataset(
+                                           key, 
+                                           data=output_data,
+                                           compression="gzip"
+                                          )
 
 
 def homography_adaptation(input_images, model, grid_size, homography_cfg):
