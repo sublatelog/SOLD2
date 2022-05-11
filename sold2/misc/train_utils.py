@@ -19,20 +19,32 @@ def convert_image(input_tensor, axis):
 ######################
 ## checkpoint utils ##
 ######################
-def get_latest_checkpoint(checkpoint_root, checkpoint_name,
-                          device=torch.device("cuda")):
+def get_latest_checkpoint(
+                          checkpoint_root, 
+                          checkpoint_name,
+                          device=torch.device("cuda")
+                         ):
+    
     """ Get the latest checkpoint or by filename. """
+    
     # Load specific checkpoint
     if checkpoint_name is not None:
+        print("checkpoint_name")
         checkpoint = torch.load(
-            os.path.join(checkpoint_root, checkpoint_name),
-            map_location=device)
+                                os.path.join(checkpoint_root, checkpoint_name),
+                                map_location=device
+                                )
+        print("loaded")
+        
     # Load the latest checkpoint
     else:
-        lastest_checkpoint = sorted(os.listdir(os.path.join(
-            checkpoint_root, "*.tar")))[-1]
-        checkpoint = torch.load(os.path.join(
-            checkpoint_root, lastest_checkpoint), map_location=device)
+        lastest_checkpoint = sorted(os.listdir(os.path.join(checkpoint_root, "*.tar")))[-1]
+        
+        checkpoint = torch.load(
+                                os.path.join(checkpoint_root, lastest_checkpoint), 
+                                map_location=device
+                                )
+        
     return checkpoint
 
 
