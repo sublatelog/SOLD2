@@ -87,14 +87,25 @@ def train(args, dataset_cfg, model_cfg, output_path):
 def export(args, dataset_cfg, model_cfg, output_path,
            export_dataset_mode=None, device=torch.device("cuda")):
     """ Export function. """
+    
     # Choose between normal predictions export or homography adaptation
     if dataset_cfg.get("homography_adaptation") is not None:
         print("[Info] Export predictions with homography adaptation.")
-        export_homograpy_adaptation(args, dataset_cfg, model_cfg, output_path,
-                                    export_dataset_mode, device)
+        
+        export_homograpy_adaptation(args, 
+                                    dataset_cfg, 
+                                    model_cfg, 
+                                    output_path,
+                                    export_dataset_mode, 
+                                    device
+                                   )
     else:
         print("[Info] Export predictions normally.")
-        export_predictions(args, dataset_cfg, model_cfg, output_path,
+        
+        export_predictions(args, 
+                           dataset_cfg, 
+                           model_cfg, 
+                           output_path,
                            export_dataset_mode)
 
 
