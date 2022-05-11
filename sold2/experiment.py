@@ -123,15 +123,19 @@ def main(args,
     if args.mode == "train":
         if not os.path.exists(output_path):
             os.makedirs(output_path)
+            
         print("[Info] Training mode")
         print("\t Output path: %s" % output_path)
+        
         train(args, dataset_cfg, model_cfg, output_path)
         
     elif args.mode == "export":
         # Different output_path in export mode
         output_path = os.path.join(cfg.export_dataroot, args.exp_name)
+        
         print("[Info] Export mode")
         print("\t Output path: %s" % output_path)
+        
         export(args, dataset_cfg, model_cfg, output_path, export_dataset_mode, device=device)
         
     else:
