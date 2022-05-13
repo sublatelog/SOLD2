@@ -7,12 +7,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from kornia.geometry import warp_perspective
 
-from ..misc.geometry_utils import (keypoints_to_grid, get_dist_mask,
-                                   get_common_line_mask)
+from ..misc.geometry_utils import (keypoints_to_grid, get_dist_mask, get_common_line_mask)
 
 
+# "heatmap_loss", "w_junc", "descriptor_loss", "w_heatmap"
 def get_loss_and_weights(model_cfg, device=torch.device("cuda")):
     """ Get loss functions and either static or dynamic weighting. """
+    
     # Get the global weighting policy
     w_policy = model_cfg.get("weighting_policy", "static")
     if not w_policy in ["static", "dynamic"]:
@@ -27,14 +28,21 @@ def get_loss_and_weights(model_cfg, device=torch.device("cuda")):
 
     # Get heatmap loss function and weight
     w_heatmap, heatmap_loss_func = get_heatmap_loss_and_weight(
-        model_cfg, w_policy, device)
+                                                                model_cfg, 
+                                                                w_policy, 
+                                                                device
+                                                              )
+    
     loss_func["heatmap_loss"] = heatmap_loss_func.to(device)
     loss_weight["w_heatmap"] = w_heatmap
 
     # [Optionally] get descriptor loss function and weight
     if model_cfg.get("descriptor_loss_func", None) is not None:
         w_descriptor, descriptor_loss_func = get_descriptor_loss_and_weight(
-            model_cfg, w_policy)
+                                                                            model_cfg, 
+                                                                            w_policy
+                                                                            )
+        
         loss_func["descriptor_loss"] = descriptor_loss_func.to(device)
         loss_weight["w_desc"] = w_descriptor
 
@@ -47,7 +55,7 @@ def get_junction_loss_and_weight(model_cfg, global_w_policy):
     junction_loss_cfg = model_cfg.get("junction_loss_cfg", {})
     
     # Get the junction loss weight
-    w_policy = junction_loss_cfg.get("policy", global_w_policy)
+    w_policy = junction_loss_cfg.get("policy", global_w_policy) # policy: "dynamic"
     
     if w_policy == "static":
         w_junc = torch.tensor(model_cfg["w_junc"], dtype=torch.float32)
@@ -83,24 +91,29 @@ def get_heatmap_loss_and_weight(model_cfg, global_w_policy, device):
 
     # Get the heatmap loss weight
     w_policy = heatmap_loss_cfg.get("policy", global_w_policy)
+    
     if w_policy == "static":
         w_heatmap = torch.tensor(model_cfg["w_heatmap"], dtype=torch.float32)
+        
     elif w_policy == "dynamic":
         w_heatmap = nn.Parameter(
-            torch.tensor(model_cfg["w_heatmap"], dtype=torch.float32), 
-            requires_grad=True)
+                                torch.tensor(model_cfg["w_heatmap"], dtype=torch.float32), 
+                                requires_grad=True
+                                )
+        
     else:
-        raise ValueError(
-    "[Error] Unknown weighting policy for junction loss weight.")
+        raise ValueError([Error] Unknown weighting policy for junction loss weight.")
 
     # Get the corresponding heatmap loss based on the config
     heatmap_loss_name = model_cfg.get("heatmap_loss_func", "cross_entropy")
+                         
     if heatmap_loss_name == "cross_entropy":
         # Get the heatmap class weight (always static)
         heatmap_class_w = model_cfg.get("w_heatmap_class", 1.)
-        class_weight = torch.tensor(
-            np.array([1., heatmap_class_w])).to(torch.float).to(device)
+                         
+        class_weight = torch.tensor(np.array([1., heatmap_class_w])).to(torch.float).to(device)
         heatmap_loss_func = HeatmapLoss(class_weight=class_weight)
+                         
     else:
         raise ValueError("[Error] Not supported heatmap loss function.")
 
@@ -192,8 +205,11 @@ def junction_detection_loss(junction_map, junc_predictions, valid_mask=None,
     return loss_final
 
 
-def heatmap_loss(heatmap_gt, heatmap_pred, valid_mask=None,
-                 class_weight=None):
+def heatmap_loss(heatmap_gt, 
+                 heatmap_pred, 
+                 valid_mask=None,
+                 class_weight=None
+                ):
     """ Heatmap prediction loss. """
     # Compute the classification loss on each pixel
     if class_weight is None:
@@ -201,15 +217,14 @@ def heatmap_loss(heatmap_gt, heatmap_pred, valid_mask=None,
     else:
         loss_func = nn.CrossEntropyLoss(class_weight, reduction="none")
 
-    loss = loss_func(input=heatmap_pred,
-                     target=torch.squeeze(heatmap_gt.to(torch.long), dim=1))
+    loss = loss_func(input=heatmap_pred, target=torch.squeeze(heatmap_gt.to(torch.long), dim=1))
 
     # Weighted sum by the valid mask
     # Sum over H and W
-    loss_spatial_sum = torch.sum(loss * torch.squeeze(
-        valid_mask.to(torch.float), dim=1), dim=[1, 2])
-    valid_spatial_sum = torch.sum(torch.squeeze(valid_mask.to(torch.float32),
-                                                dim=1), dim=[1, 2])
+    loss_spatial_sum = torch.sum(loss * torch.squeeze(valid_mask.to(torch.float), dim=1), dim=[1, 2])
+                         
+    valid_spatial_sum = torch.sum(torch.squeeze(valid_mask.to(torch.float32),dim=1), dim=[1, 2])
+                         
     # Mean to single scalar over batch dimension
     loss = torch.sum(loss_spatial_sum) / torch.sum(valid_spatial_sum)
 
@@ -224,8 +239,13 @@ class JunctionDetectionLoss(nn.Module):
         self.keep_border = keep_border
 
     def forward(self, prediction, target, valid_mask=None):
-        return junction_detection_loss(target, prediction, valid_mask,
-                                       self.grid_size, self.keep_border)
+                         
+        return junction_detection_loss(target, 
+                                       prediction, 
+                                       valid_mask,
+                                       self.grid_size, 
+                                       self.keep_border
+                                      )
 
 
 class HeatmapLoss(nn.Module):
