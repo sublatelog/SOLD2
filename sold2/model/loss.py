@@ -9,7 +9,7 @@ from kornia.geometry import warp_perspective
 
 from ..misc.geometry_utils import (keypoints_to_grid, get_dist_mask, get_common_line_mask)
 
-
+# get_loss_and_weights ----------- ----------- ----------- ----------- ----------- -----------
 # "heatmap_loss", "w_junc", "descriptor_loss", "w_heatmap"
 def get_loss_and_weights(model_cfg, device=torch.device("cuda")):
     """ Get loss functions and either static or dynamic weighting. """
@@ -26,7 +26,7 @@ def get_loss_and_weights(model_cfg, device=torch.device("cuda")):
     loss_func["junc_loss"] = junc_loss_func.to(device)
     loss_weight["w_junc"] = w_junc
 
-    # Get heatmap loss function and weight
+    # heatmap_loss_and_weightt ---------- ---------- ---------- ---------- ---------- ---------- ----------
     w_heatmap, heatmap_loss_func = get_heatmap_loss_and_weight(
                                                                 model_cfg, 
                                                                 w_policy, 
@@ -38,6 +38,8 @@ def get_loss_and_weights(model_cfg, device=torch.device("cuda")):
 
     # [Optionally] get descriptor loss function and weight
     if model_cfg.get("descriptor_loss_func", None) is not None:
+        
+        # descriptor_loss_and_weight ---------- ---------- ---------- ---------- ---------- ----------
         w_descriptor, descriptor_loss_func = get_descriptor_loss_and_weight(
                                                                             model_cfg, 
                                                                             w_policy
@@ -48,7 +50,7 @@ def get_loss_and_weights(model_cfg, device=torch.device("cuda")):
 
     return loss_func, loss_weight
 
-
+# get_loss_and_weights > get_junction_loss_and_weight----------- ----------- ----------- ----------- ----------- ----------- ----------- ----------- -----------
 def get_junction_loss_and_weight(model_cfg, global_w_policy):
     """ Get the junction loss function and weight. """
     
@@ -83,7 +85,7 @@ def get_junction_loss_and_weight(model_cfg, global_w_policy):
 
     return w_junc, junc_loss_func
 
-
+# get_loss_and_weights > get_heatmap_loss_and_weight----------- ----------- ----------- ----------- ----------- ----------- ----------- ----------- -----------
 def get_heatmap_loss_and_weight(model_cfg, global_w_policy, device):
     """ Get the heatmap loss function and weight. """
     
@@ -160,60 +162,69 @@ def space_to_depth(input_tensor, grid_size):
     x = x.view(N, C * (grid_size ** 2), H // grid_size, W // grid_size)
     return x
 
-
-def junction_detection_loss(junction_map, junc_predictions, valid_mask=None,
-                            grid_size=8, keep_border=True):
+# get_loss_and_weights > get_junction_loss_and_weight > JunctionDetectionLoss > junction_detection_loss ----------- ----------- ----------- ----------- -----------
+def junction_detection_loss(junction_map, 
+                            junc_predictions, 
+                            valid_mask=None,
+                            grid_size=8, 
+                            keep_border=True
+                           ):
+                         
     """ Junction detection loss. """
+                         
     # Convert junc_map to channel tensor
     junc_map = space_to_depth(junction_map, grid_size)
     map_shape = junc_map.shape[-2:]
     batch_size = junc_map.shape[0]
+                         
     dust_bin_label = torch.ones(
-        [batch_size, 1, map_shape[0],
-         map_shape[1]]).to(junc_map.device).to(torch.int)
+                                [batch_size, 
+                                 1, 
+                                 map_shape[0],
+                                 map_shape[1]
+                                ]).to(junc_map.device).to(torch.int)
+                         
     junc_map = torch.cat([junc_map*2, dust_bin_label], dim=1)
+                         
     labels = torch.argmax(
-        junc_map.to(torch.float) +
-        torch.distributions.Uniform(0, 0.1).sample(junc_map.shape).to(junc_map.device),
-        dim=1)
+        junc_map.to(torch.float) + torch.distributions.Uniform(0, 0.1).sample(junc_map.shape).to(junc_map.device), dim=1)
 
     # Also convert the valid mask to channel tensor
-    valid_mask = (torch.ones(junction_map.shape) if valid_mask is None
-                  else valid_mask)
+    valid_mask = (torch.ones(junction_map.shape) if valid_mask is None else valid_mask)
     valid_mask = space_to_depth(valid_mask, grid_size)
     
     # Compute junction loss on the border patch or not
     if keep_border:
-        valid_mask = torch.sum(valid_mask.to(torch.bool).to(torch.int),
-                               dim=1, keepdim=True) > 0
+        valid_mask = torch.sum(valid_mask.to(torch.bool).to(torch.int), dim=1, keepdim=True) > 0
     else:
-        valid_mask = torch.sum(valid_mask.to(torch.bool).to(torch.int),
-                               dim=1, keepdim=True) >= grid_size * grid_size
+        valid_mask = torch.sum(valid_mask.to(torch.bool).to(torch.int), dim=1, keepdim=True) >= grid_size * grid_size
 
     # Compute the classification loss
     loss_func = nn.CrossEntropyLoss(reduction="none")
+                         
+                         
     # The loss still need NCHW format
     loss = loss_func(input=junc_predictions,
                      target=labels.to(torch.long))
     
     # Weighted sum by the valid mask
-    loss_ = torch.sum(loss * torch.squeeze(valid_mask.to(torch.float),
-                                           dim=1), dim=[0, 1, 2])
-    loss_final = loss_ / torch.sum(torch.squeeze(valid_mask.to(torch.float),
-                                                 dim=1))
+    loss_ = torch.sum(loss * torch.squeeze(valid_mask.to(torch.float), dim=1), dim=[0, 1, 2])
+    loss_final = loss_ / torch.sum(torch.squeeze(valid_mask.to(torch.float), dim=1))
 
     return loss_final
-
-
+                         
+# get_loss_and_weights > get_heatmap_loss_and_weight > HeatmapLoss > heatmap_loss ----------- ----------- ----------- ----------- ----------- ----------- -----------
 def heatmap_loss(heatmap_gt, 
                  heatmap_pred, 
                  valid_mask=None,
                  class_weight=None
                 ):
+                         
     """ Heatmap prediction loss. """
+                         
     # Compute the classification loss on each pixel
     if class_weight is None:
-        loss_func = nn.CrossEntropyLoss(reduction="none")
+        loss_func = nn.CrossEntropyLoss(reduction="none")                         
     else:
         loss_func = nn.CrossEntropyLoss(class_weight, reduction="none")
 
@@ -230,9 +241,10 @@ def heatmap_loss(heatmap_gt,
 
     return loss
 
-
+# get_loss_and_weights > get_junction_loss_and_weight > JunctionDetectionLoss -----------  ----------- ----------- ----------- ----------- ----------- -----------
 class JunctionDetectionLoss(nn.Module):
     """ Junction detection loss. """
+                         
     def __init__(self, grid_size, keep_border):
         super(JunctionDetectionLoss, self).__init__()
         self.grid_size = grid_size
@@ -247,7 +259,7 @@ class JunctionDetectionLoss(nn.Module):
                                        self.keep_border
                                       )
 
-
+# get_loss_and_weights > get_heatmap_loss_and_weight > HeatmapLoss ----------- ----------- ----------- ----------- ----------- ----------- ----------- ----------- -----------
 class HeatmapLoss(nn.Module):
     """ Heatmap prediction loss. """
     def __init__(self, class_weight):
