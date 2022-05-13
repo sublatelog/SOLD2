@@ -118,30 +118,36 @@ class SyntheticShapes(Dataset):
     ##########################################
     def construct_dataset(self):
         """ Dataset constructor. """
+        
         # Check if the filename cache exists
         # If cache exists, load from cache
         
+        # キャッシュファイルの存在を確認
         if self._check_dataset_cache():
             print("[Info]: Found filename cache at ...")
             print("\t Load filename cache...")
             
+            # キャッシュファイルから"filename_dataset"と"datapoints"を取り出す
             filename_dataset, datapoints = self.get_filename_dataset_from_cache()
             
             print("\t Check if all file exists...")
             
-            # If all file exists, continue
+            # "dataset_name".h5の中身とfilename_datasetが全て同じか確認
             if self._check_file_existence(filename_dataset):
                 print("\t All files exist!")
                 
-            # If not, need to re-export the synthetic dataset
+            # 新規に作成　If not, need to re-export the synthetic dataset            
             else:
                 print("\t Some files are missing. Re-export the synthetic shape dataset.")
+                
                 self.export_synthetic_shapes()
+                
                 print("\t Initialize filename dataset")
+                
                 filename_dataset, datapoints = self.get_filename_dataset()
+                
                 print("\t Create filename dataset cache...")
-                self.create_filename_dataset_cache(filename_dataset,
-                                                   datapoints)
+                self.create_filename_dataset_cache(filename_dataset, datapoints)
 
         # If not, initialize dataset from scratch
         else:
@@ -159,6 +165,7 @@ class SyntheticShapes(Dataset):
                 print("\t Initialize filename dataset")
 
             filename_dataset, datapoints = self.get_filename_dataset()
+            
             print("\t Create filename dataset cache...")
             self.create_filename_dataset_cache(filename_dataset, datapoints)
 
@@ -190,6 +197,7 @@ class SyntheticShapes(Dataset):
         return dataset_name
     
 
+    # キャッシュファイルから"filename_dataset"と"datapoints"を取り出す
     def get_filename_dataset_from_cache(self):
         """ Get filename dataset from cache. """
         
@@ -741,8 +749,11 @@ class SyntheticShapes(Dataset):
     ########################
     ## Some other methods ##
     ########################
+    
+    # datasetキャッシュファイルの確認
     def _check_dataset_cache(self):
         """ Check if dataset cache exists. """
+        
         cache_file_path = os.path.join(self.cache_path, self.cache_name)
         if os.path.exists(cache_file_path):
             return True
@@ -757,19 +768,20 @@ class SyntheticShapes(Dataset):
         else:
             return False
 
+    # "dataset_name".h5の中身とfilename_datasetが同じか確認
     def _check_file_existence(self, filename_dataset):
         """ Check if all exported file exists. """
         # Path to the exported dataset
-        dataset_path = os.path.join(cfg.synthetic_dataroot, 
-                                    self.dataset_name + ".h5")
+        dataset_path = os.path.join(cfg.synthetic_dataroot, self.dataset_name + ".h5")
 
         flag = True
+        
         # Open the h5 dataset
         with h5py.File(dataset_path, "r") as f:
+            
             # Iterate through all the primitives
             for prim_name in f.keys():
-                if (len(filename_dataset[prim_name])
-                    != len(f[prim_name].keys())):
+                if (len(filename_dataset[prim_name]) != len(f[prim_name].keys())):
                     flag = False
 
         return flag
