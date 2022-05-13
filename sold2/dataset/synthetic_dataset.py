@@ -58,7 +58,7 @@ def synthetic_collate_fn(batch):
 
     return outputs
 
-
+# SyntheticShapes ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
 class SyntheticShapes(Dataset):
     """ Dataset of synthetic shapes. """
     # Initialize the dataset
@@ -95,6 +95,8 @@ class SyntheticShapes(Dataset):
 
         # Check if export dataset exists
         print("===============================================")
+        
+        # データセットの作成 ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
         self.filename_dataset, self.datapoints = self.construct_dataset()
         self.print_dataset_info()
 
@@ -116,9 +118,7 @@ class SyntheticShapes(Dataset):
             torch.backends.cudnn.benchmark = False
 
             
-    ##########################################
-    ## Dataset construction related methods ##
-    ##########################################
+    # SyntheticShapes > construct_dataset ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------   
     def construct_dataset(self):
         """ Dataset constructor. """
         
@@ -164,6 +164,7 @@ class SyntheticShapes(Dataset):
             # If export dataset does not exist, export from scratch
             else:
                 print("\t Synthetic dataset does not exist. Export the synthetic dataset.")
+                
                 self.export_synthetic_shapes()
                 print("\t Initialize filename dataset")
 
@@ -253,7 +254,7 @@ class SyntheticShapes(Dataset):
         with open(cache_file_path, "wb") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
-            
+    # SyntheticShapes > construct_dataset > export_synthetic_shapes ---------- ----------  ----------  ----------  ----------  ----------  ----------  ---------- 
     def export_synthetic_shapes(self):
         """ Export synthetic shapes to disk. """
         
@@ -292,11 +293,24 @@ class SyntheticShapes(Dataset):
 
             f.swmr_mode = True
 
-            
+    # SyntheticShapes > construct_dataset > export_synthetic_shapes > export_single_primitive---------- ----------  ----------  ----------  ----------  ----------         
     def export_single_primitive(self, primitive, split_size, group):
         """ Export single primitive. """
         
         # Check if the primitive is valid or not
+        """
+        self.available_primitives = 
+        [
+        'draw_lines',
+        'draw_polygon',
+        'draw_multiple_polygons',
+        'draw_star',
+        'draw_checkerboard_multiseg',
+        'draw_stripes_multiseg',
+        'draw_cube',
+        'gaussian_noise'
+        ]
+        """
         if primitive not in self.available_primitives:
             raise ValueError("[Error]: %s is not a supported primitive" % primitive)
             
@@ -305,20 +319,29 @@ class SyntheticShapes(Dataset):
 
         # Generate shapes
         print("\t Generating %s ..." % primitive)
+        
+        
         for idx in tqdm(range(split_size), ascii=True):
             # Generate background image
+            """
+            generate_background:
+            min_kernel_size: 150
+            max_kernel_size: 500
+            min_rad_ratio: 0.02
+            max_rad_ratio: 0.031
+            """            
             image = synthetic_util.generate_background(
-                                                       self.config['generation']['image_size'], 
-                                                       **self.config['generation']['params']['generate_background']
+                                                       self.config['generation']['image_size'],  # image_size: [960, 1280]
+                                                       **self.config['generation']['params']['generate_background']                                                        
                                                        )
 
             # Generate points
             drawing_func = getattr(synthetic_util, primitive)
+    
             kwarg = self.config["generation"]["params"].get(primitive, {})
-
             # Get min_len and min_label_len
-            min_len = self.config["generation"]["min_len"]
-            min_label_len = self.config["generation"]["min_label_len"]
+            min_len = self.config["generation"]["min_len"] # min_len: 0.0985
+            min_label_len = self.config["generation"]["min_label_len"] # min_label_len: 0.099
 
             # Some only take min_label_len, and gaussian noises take nothing
             if primitive in ["draw_lines", 
@@ -349,14 +372,15 @@ class SyntheticShapes(Dataset):
 
             # Convert the data
             if data["points"] is not None:
-                points = np.flip(data["points"], axis=1).astype(np.float)
+                points = np.flip(data["points"], axis=1).astype(np.float) # np.flip():NumPy配列ndarrayを上下左右に反転する
                 line_map = data["line_map"].astype(np.int32)
+                
             else:
                 points = np.zeros([0, 2]).astype(np.float)
                 line_map = np.zeros([0, 0]).astype(np.int32)
 
             # Post-processing
-            blur_size = self.config["preprocessing"]["blur_size"]
+            blur_size = self.config["preprocessing"]["blur_size"] # blur_size: 11
             image = cv2.GaussianBlur(image, (blur_size, blur_size), 0)
 
             # Resize the image and the point location.
@@ -367,7 +391,7 @@ class SyntheticShapes(Dataset):
             
             image = cv2.resize(
                               image, 
-                              tuple(self.config['preprocessing']['resize'][::-1]),
+                              tuple(self.config['preprocessing']['resize'][::-1]), # resize: [400, 400]
                               interpolation=cv2.INTER_LINEAR
                               )
             
@@ -395,21 +419,31 @@ class SyntheticShapes(Dataset):
                                       data=points,
                                       compression="gzip"
                                      )
+            print("points")
+            print(points)
             
             file_group.create_dataset("image", 
                                       data=image,
                                       compression="gzip"
                                      )
+            print("image")
+            print(image)
             
             file_group.create_dataset("line_map", 
                                       data=line_map,
                                       compression="gzip"
                                      )
+            print("line_map")
+            print(line_map)
             
             file_group.create_dataset("heatmap", 
                                       data=heatmap,
                                       compression="gzip"
                                      )
+            print("heatmap")
+            print(heatmap)
+            
+            
 
     def get_default_config(self):
         """ Get default configuration of the dataset. """
