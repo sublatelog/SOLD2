@@ -437,10 +437,9 @@ class SyntheticShapes(Dataset):
                                       data=image,
                                       compression="gzip"
                                      )
-            print("image")
-            print(image.shape)
-            """
+             """
             image
+            (400, 400)
             [[240 240 240 ... 239 239 239]
              [240 240 240 ... 239 239 239]
              [240 240 240 ... 239 239 239]
@@ -477,6 +476,7 @@ class SyntheticShapes(Dataset):
             print(heatmap.shape)
             """
             heatmap
+            (400, 400)
             [[0 0 0 ... 0 0 0]
              [0 0 0 ... 0 0 0]
              [0 0 0 ... 0 0 0]
