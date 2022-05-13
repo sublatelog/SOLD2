@@ -12,11 +12,21 @@ import shapely.geometry
 
 
 def sample_homography(
-        shape, perspective=True, scaling=True, rotation=True,
-        translation=True, n_scales=5, n_angles=25, scaling_amplitude=0.1,
-        perspective_amplitude_x=0.1, perspective_amplitude_y=0.1,
-        patch_ratio=0.5, max_angle=pi/2, allow_artifacts=False,
-        translation_overflow=0.):
+                        shape, 
+                        perspective=True, 
+                        scaling=True, 
+                        rotation=True,
+                        translation=True, 
+                        n_scales=5, 
+                        n_angles=25, 
+                        scaling_amplitude=0.1,
+                        perspective_amplitude_x=0.1, 
+                        perspective_amplitude_y=0.1,
+                        patch_ratio=0.5, 
+                        max_angle=pi/2, 
+                        allow_artifacts=False,
+                        translation_overflow=0.
+                        ):
     """
     Computes the homography transformation between a random patch in the
     original image and a warped projection with the same image size.
@@ -42,20 +52,25 @@ def sample_homography(
         translation_overflow: Amount of border artifacts caused by translation.
 
     Returns:
-        homo_mat: A numpy array of shape `[1, 3, 3]` corresponding to the
-                  homography transform.
+        homo_mat: A numpy array of shape `[1, 3, 3]` corresponding to the homography transform.
         selected_scale: The selected scaling factor.
     """
+
     # Convert shape to ndarry
     if not isinstance(shape, np.ndarray):
         shape = np.array(shape)
 
     # Corners of the output image
     pts1 = np.array([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])
+        
     # Corners of the input patch
     margin = (1 - patch_ratio) / 2
-    pts2 = margin + np.array([[0, 0], [0, patch_ratio],
-                             [patch_ratio, patch_ratio], [patch_ratio, 0]])
+        
+    pts2 = margin + np.array([[0, 0],
+                              [0, patch_ratio],
+                              [patch_ratio, patch_ratio], 
+                              [patch_ratio, 0]
+                             ])
 
     # Random perspective and affine perturbations
     if perspective:
@@ -64,42 +79,56 @@ def sample_homography(
             perspective_amplitude_y = min(perspective_amplitude_y, margin)
 
         # normal distribution with mean=0, std=perspective_amplitude_y/2
-        perspective_displacement = np.random.normal(
-            0., perspective_amplitude_y/2, [1])
-        h_displacement_left = np.random.normal(
-            0., perspective_amplitude_x/2, [1])
-        h_displacement_right = np.random.normal(
-            0., perspective_amplitude_x/2, [1])
-        pts2 += np.stack([np.concatenate([h_displacement_left,
-                                          perspective_displacement], 0),
-                          np.concatenate([h_displacement_left,
-                                          -perspective_displacement], 0),
-                          np.concatenate([h_displacement_right,
-                                          perspective_displacement], 0),
-                          np.concatenate([h_displacement_right,
-                                          -perspective_displacement], 0)])
+        perspective_displacement = np.random.normal(0., perspective_amplitude_y/2, [1])
+        h_displacement_left = np.random.normal(0., perspective_amplitude_x/2, [1])
+        h_displacement_right = np.random.normal(0., perspective_amplitude_x/2, [1])
+        
+        pts2 += np.stack([np.concatenate([h_displacement_left, perspective_displacement], 0),
+                          np.concatenate([h_displacement_left, -perspective_displacement], 0),
+                          np.concatenate([h_displacement_right, perspective_displacement], 0),
+                          np.concatenate([h_displacement_right, -perspective_displacement], 0)
+                         ])
 
     # Random scaling: sample several scales, check collision with borders,
     # randomly pick a valid one
+        
     if scaling:
-        scales = np.concatenate(
-            [[1.], np.random.normal(1, scaling_amplitude/2, [n_scales])], 0)
+        scales = np.concatenate([[1.], np.random.normal(1, scaling_amplitude/2, [n_scales])], 0)
         center = np.mean(pts2, axis=0, keepdims=True)
         scaled = (pts2 - center)[None, ...] * scales[..., None, None] + center
+        
         # all scales are valid except scale=1
         if allow_artifacts:
             valid = np.array(range(n_scales))
+        
         # Chech the valid scale
         else:
-            valid = np.where(np.all((scaled >= 0.)
-                             & (scaled < 1.), (1, 2)))[0]
+            valid = np.where(
+                             np.all(
+                                    (scaled >= 0.)
+                                     & 
+                                     (scaled < 1.), (1, 2)
+                                   )
+                            )[0]
+        
         # No valid scale found => recursively call
         if valid.shape[0] == 0:
             return sample_homography(
-                shape, perspective, scaling, rotation, translation,
-                n_scales, n_angles, scaling_amplitude, 
-                perspective_amplitude_x, perspective_amplitude_y,
-                patch_ratio, max_angle, allow_artifacts, translation_overflow)
+                                    shape, 
+                                    perspective, 
+                                    scaling, 
+                                    rotation, 
+                                    translation,
+                                    n_scales, 
+                                    n_angles, 
+                                    scaling_amplitude, 
+                                    perspective_amplitude_x, 
+                                    perspective_amplitude_y,
+                                    patch_ratio, 
+                                    max_angle, 
+                                    allow_artifacts, 
+                                    translation_overflow
+                                    )
 
         idx = valid[np.random.uniform(0., valid.shape[0], ()).astype(np.int32)]
         pts2 = scaled[idx]
@@ -113,39 +142,64 @@ def sample_homography(
         if allow_artifacts:
             t_min += translation_overflow
             t_max += translation_overflow
-        pts2 += (np.stack([np.random.uniform(-t_min[0], t_max[0], ()),
-                           np.random.uniform(-t_min[1],
-                                             t_max[1], ())]))[None, ...]
+                
+        pts2 += (np.stack([np.random.uniform(-t_min[0], t_max[0], ()), np.random.uniform(-t_min[1], t_max[1], ())]))[None, ...]
 
     # Random rotation: sample several rotations, check collision with borders,
     # randomly pick a valid one
     if rotation:
         angles = np.linspace(-max_angle, max_angle, n_angles)
+        
         # in case no rotation is valid
         angles = np.concatenate([[0.], angles], axis=0)
         center = np.mean(pts2, axis=0, keepdims=True)
         rot_mat = np.reshape(np.stack(
-            [np.cos(angles), -np.sin(angles),
-             np.sin(angles), np.cos(angles)], axis=1), [-1, 2, 2])
+                                      [np.cos(angles), -np.sin(angles),
+                                       np.sin(angles), np.cos(angles)
+                                      ], 
+                                      axis=1
+                                      ), [-1, 2, 2])
+        
         rotated = np.matmul(
-                np.tile((pts2 - center)[None, ...], [n_angles+1, 1, 1]),
-                rot_mat) + center
+                            np.tile(
+                                    (pts2 - center)[None, ...], 
+                                    [n_angles+1, 1, 1]
+                                    ),
+                           rot_mat
+                           ) + center
+        
         if allow_artifacts:
             # All angles are valid, except angle=0
             valid = np.array(range(n_angles))
+                
         else:
-            valid = np.where(np.all((rotated >= 0.)
-                             & (rotated < 1.), axis=(1, 2)))[0]
+            valid = np.where(np.all(
+                                    (rotated >= 0.)
+                                    & 
+                                    (rotated < 1.), 
+                                    axis=(1, 2)
+                                    )
+                             )[0]
         
         if valid.shape[0] == 0:
             return sample_homography(
-                shape, perspective, scaling, rotation, translation,
-                n_scales, n_angles, scaling_amplitude, 
-                perspective_amplitude_x, perspective_amplitude_y,
-                patch_ratio, max_angle, allow_artifacts, translation_overflow)
+                                    shape, 
+                                    perspective, 
+                                    scaling, 
+                                    rotation, 
+                                    translation,
+                                    n_scales, 
+                                    n_angles, 
+                                    scaling_amplitude, 
+                                    perspective_amplitude_x, 
+                                    perspective_amplitude_y,
+                                    patch_ratio, 
+                                    max_angle, 
+                                    allow_artifacts, 
+                                    translation_overflow
+                                    )
 
-        idx = valid[np.random.uniform(0., valid.shape[0],
-                                      ()).astype(np.int32)]
+        idx = valid[np.random.uniform(0., valid.shape[0], ()).astype(np.int32)]
         pts2 = rotated[idx]
 
     # Rescale to actual size
@@ -159,15 +213,23 @@ def sample_homography(
 
     a_mat = np.stack([f(pts1[i], pts2[i]) for i in range(4)
                       for f in (ax, ay)], axis=0)
-    p_mat = np.transpose(np.stack([[pts2[i][j] for i in range(4)
-                                    for j in range(2)]], axis=0))
+    p_mat = np.transpose(np.stack([[pts2[i][j] for i in range(4) for j in range(2)]], axis=0))
+        
     homo_vec, _, _, _ = np.linalg.lstsq(a_mat, p_mat, rcond=None)
 
     # Compose the homography vector back to matrix
     homo_mat = np.concatenate([
-        homo_vec[0:3, 0][None, ...], homo_vec[3:6, 0][None, ...],
-        np.concatenate((homo_vec[6], homo_vec[7], [1]),
-                       axis=0)[None, ...]], axis=0)
+                               homo_vec[0:3, 0][None, ...], 
+                               homo_vec[3:6, 0][None, ...],
+                               np.concatenate((
+                                               homo_vec[6], 
+                                               homo_vec[7], 
+                                               [1]
+                                              ),
+                                              axis=0)[None, ...]
+                             ], 
+                             axis=0
+                            )
 
     return homo_mat, selected_scale
 
