@@ -569,22 +569,25 @@ class SyntheticShapes(Dataset):
     #########################
     ## Pytorch related API ##
     #########################
+    
+    # getitem > get_data_from_datapoint ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
     def get_data_from_datapoint(self, datapoint, reader=None):
-        """ Get data given the datapoint
-            (keyname of the h5 dataset e.g. "draw_lines/0000.h5"). """
+        """ Get data given the datapoint (keyname of the h5 dataset e.g. "draw_lines/0000.h5"). """
+        
         # Check if the datapoint is valid
         if not datapoint in self.datapoints:
-            raise ValueError(
-        "[Error] The specified datapoint is not in available datapoints.")
+            raise ValueError("[Error] The specified datapoint is not in available datapoints.")
 
         # Get data from h5 dataset
         if reader is None:
-            raise ValueError(
-        "[Error] The reader must be provided in __getitem__.")
+            raise ValueError("[Error] The reader must be provided in __getitem__.")
+            
         else:
             data = reader[datapoint]
 
         return parse_h5_data(data)
+    
+    
 
     def get_data_from_signature(self, primitive_name, index):
         """ Get data given the primitive name and index ("draw_lines", 10) """
@@ -602,14 +605,28 @@ class SyntheticShapes(Dataset):
         assert set(trans) <= set(all_transforms)
         return trans
 
+    # getitem > train_preprocessing > get_photo_transform---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------  
     def get_photo_transform(self):
         """ Get list of photometric transforms (according to the config). """
+        
         # Get the photometric transform config
         photo_config = self.config["augmentation"]["photometric"]
+        
         if not photo_config["enable"]:
             raise ValueError("[Error] Photometric augmentation is not enabled.")
         
         # Parse photometric transforms
+        # 'all' -> all_transforms
+        """
+        available_augmentations = [
+            'additive_gaussian_noise',
+            'additive_speckle_noise',
+            'random_brightness',
+            'random_contrast',
+            'additive_shade',
+            'motion_blur'
+        ]
+        """
         trans_lst = self.parse_transforms(photo_config["primitives"], photoaug.available_augmentations)
         trans_config_lst = [photo_config["params"].get(p, {}) for p in trans_lst]
 
@@ -618,8 +635,11 @@ class SyntheticShapes(Dataset):
 
         return photometric_trans_lst
     
+    
+    # getitem > train_preprocessing > get_homo_transform ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------  
     def get_homo_transform(self):
         """ Get homographic transforms (according to the config). """
+        
         # Get homographic transforms for image
         homo_config = self.config["augmentation"]["homographic"]["params"]
         if not self.config["augmentation"]["homographic"]["enable"]:
@@ -627,11 +647,11 @@ class SyntheticShapes(Dataset):
 
         # Parse the homographic transforms
         # ToDo: use the shape from the config
-        image_shape = self.config["preprocessing"]["resize"]
+        image_shape = self.config["preprocessing"]["resize"] # resize: [400, 400]
 
         # Compute the min_label_len from config
         try:
-            min_label_tmp = self.config["generation"]["min_label_len"]
+            min_label_tmp = self.config["generation"]["min_label_len"] # min_label_len: 0.099
         except:
             min_label_tmp = None
         
@@ -658,6 +678,7 @@ class SyntheticShapes(Dataset):
 
         return homographic_trans
 
+    # getitem > train_preprocessing > junc_to_junc_map---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
     @staticmethod
     def junc_to_junc_map(junctions, image_size):
         """ Convert junction points to junction maps. """
@@ -674,6 +695,7 @@ class SyntheticShapes(Dataset):
 
         return junc_map[..., None].astype(np.int)
 
+    # getitem > train_preprocessing ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- 
     def train_preprocessing(self, data, disable_homoaug=False):
         """ Training preprocessing. """
         
@@ -685,47 +707,59 @@ class SyntheticShapes(Dataset):
         image_size = image.shape[:2]
 
         # Resize the image before the photometric and homographic transforms
-        # Check if we need to do the resizing
-        if not(list(image.shape) == self.config["preprocessing"]["resize"]):
+        
+        # リサイズ
+        if not(list(image.shape) == self.config["preprocessing"]["resize"]): # resize: [400, 400]
             
             # Resize the image and the point location.
             size_old = list(image.shape)
             image = cv2.resize(
-                              image, tuple(self.config['preprocessing']['resize'][::-1]), 
+                              image, 
+                              tuple(self.config['preprocessing']['resize'][::-1]), 
                               interpolation=cv2.INTER_LINEAR
                               )
             
             image = np.array(image, dtype=np.uint8)
 
+            # junctionsの位置をリサイズに合わせる
             junctions = (
-                junctions * np.array(self.config['preprocessing']['resize'], np.float) / np.array(size_old, np.float)
-            )
+                        junctions * np.array(self.config['preprocessing']['resize'], np.float) / np.array(size_old, np.float)
+                        )
 
             # Generate the line heatmap after post-processing
             junctions_xy = np.flip(np.round(junctions).astype(np.int32), axis=1)
             
+            # 新しいjunctions_xyでheatmapを作成
             heatmap = synthetic_util.get_line_heatmap(junctions_xy, line_map, size=image.shape)
             heatmap = (heatmap * 255.).astype(np.uint8)
 
             # Update image size
             image_size = image.shape[:2]
         
-        # Declare default valid mask (all ones)
+        # valid mask (all ones)
         valid_mask = np.ones(image_size)
 
         # Check if we need to apply augmentations
         # In training mode => yes.
         # In homography adaptation mode (export mode) => No
         # Check photometric augmentation
+        
+        # photometric augmentation -------------------------------------------------------------------------------
         if self.config["augmentation"]["photometric"]["enable"]:
             photo_trans_lst = self.get_photo_transform()
+            
             ### Image transform ###
             np.random.shuffle(photo_trans_lst)
+            
             image_transform = transforms.Compose(photo_trans_lst + [photoaug.normalize_image()])
+            
         else:
             image_transform = photoaug.normalize_image()
             
+        # augmentationの実行
         image = image_transform(image)
+        
+        
 
         # Initialize the empty output dict
         outputs = {}
@@ -733,9 +767,9 @@ class SyntheticShapes(Dataset):
         # Convert to tensor and return the results
         to_tensor = transforms.ToTensor()
         
-        # Check homographic augmentation
-        if (self.config["augmentation"]["homographic"]["enable"]
-            and disable_homoaug == False):
+        # homographic augmentation ---------- ---------- ---------- ---------- ---------- ---------- ----------
+        if (self.config["augmentation"]["homographic"]["enable"] and disable_homoaug == False):
+            
             homo_trans = self.get_homo_transform()
             
             # Perform homographic transform
@@ -824,6 +858,8 @@ class SyntheticShapes(Dataset):
             "valid_mask": valid_mask
         }
 
+    
+    # getitem ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
     def __getitem__(self, index):
         datapoint = self.datapoints[index]
 
