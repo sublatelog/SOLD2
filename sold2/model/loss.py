@@ -43,25 +43,33 @@ def get_loss_and_weights(model_cfg, device=torch.device("cuda")):
 
 def get_junction_loss_and_weight(model_cfg, global_w_policy):
     """ Get the junction loss function and weight. """
+    
     junction_loss_cfg = model_cfg.get("junction_loss_cfg", {})
     
     # Get the junction loss weight
     w_policy = junction_loss_cfg.get("policy", global_w_policy)
+    
     if w_policy == "static":
         w_junc = torch.tensor(model_cfg["w_junc"], dtype=torch.float32)
+        
     elif w_policy == "dynamic":
         w_junc = nn.Parameter(
-            torch.tensor(model_cfg["w_junc"], dtype=torch.float32),
-            requires_grad=True)
+                              torch.tensor(model_cfg["w_junc"], dtype=torch.float32),
+                              requires_grad=True
+                             )
+        
     else:
-        raise ValueError(
-    "[Error] Unknown weighting policy for junction loss weight.")
+        raise ValueError("[Error] Unknown weighting policy for junction loss weight.")
 
     # Get the junction loss function
     junc_loss_name = model_cfg.get("junction_loss_func", "superpoint")
+    
     if junc_loss_name == "superpoint":
-        junc_loss_func = JunctionDetectionLoss(model_cfg["grid_size"],
-                                               model_cfg["keep_border_valid"])
+        junc_loss_func = JunctionDetectionLoss(
+                                               model_cfg["grid_size"],
+                                               model_cfg["keep_border_valid"]
+                                              )
+        
     else:
         raise ValueError("[Error] Not supported junction loss function.")
 
@@ -70,6 +78,7 @@ def get_junction_loss_and_weight(model_cfg, global_w_policy):
 
 def get_heatmap_loss_and_weight(model_cfg, global_w_policy, device):
     """ Get the heatmap loss function and weight. """
+    
     heatmap_loss_cfg = model_cfg.get("heatmap_loss_cfg", {})
 
     # Get the heatmap loss weight
