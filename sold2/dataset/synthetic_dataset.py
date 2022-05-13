@@ -419,30 +419,72 @@ class SyntheticShapes(Dataset):
                                       data=points,
                                       compression="gzip"
                                      )
-            print("points")
-            print(points)
+            """
+            points
+            [[238.75  226.875]
+             [170.      2.5  ]]
+             
+            points
+            [[124.16666667 351.5625    ]
+             [205.41666667 183.4375    ]
+             [327.08333333 366.5625    ]
+             [123.75        24.0625    ]
+             [270.83333333 134.375     ]
+             [327.5        334.0625    ]]
+            """
             
             file_group.create_dataset("image", 
                                       data=image,
                                       compression="gzip"
                                      )
             print("image")
-            print(image)
+            print(image.shape)
+            """
+            image
+            [[240 240 240 ... 239 239 239]
+             [240 240 240 ... 239 239 239]
+             [240 240 240 ... 239 239 239]
+             ...
+             [215 215 215 ... 234 234 234]
+             [215 215 215 ... 234 234 234]
+             [215 215 215 ... 234 234 234]]
+            """
             
             file_group.create_dataset("line_map", 
                                       data=line_map,
                                       compression="gzip"
                                      )
-            print("line_map")
-            print(line_map)
+            """
+            line_map
+            [[0 1]
+             [1 0]]
+             
+            line_map
+            [[0 1 0 0 0 0]
+             [1 0 0 0 0 0]
+             [0 0 0 1 0 0]
+             [0 0 1 0 0 0]
+             [0 0 0 0 0 1]
+             [0 0 0 0 1 0]]
+            """
+            
             
             file_group.create_dataset("heatmap", 
                                       data=heatmap,
                                       compression="gzip"
                                      )
             print("heatmap")
-            print(heatmap)
-            
+            print(heatmap.shape)
+            """
+            heatmap
+            [[0 0 0 ... 0 0 0]
+             [0 0 0 ... 0 0 0]
+             [0 0 0 ... 0 0 0]
+             ...
+             [0 0 0 ... 0 0 0]
+             [0 0 0 ... 0 0 0]
+             [0 0 0 ... 0 0 0]]
+            """
             
 
     def get_default_config(self):
