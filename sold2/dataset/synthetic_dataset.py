@@ -106,10 +106,13 @@ class SyntheticShapes(Dataset):
             seed = self.config.get("test_augmentation_seed", 200)
             
             np.random.seed(seed)
-            torch.manual_seed(seed)
+            torch.manual_seed(seed) # ネットワーク重みの初期値は毎回固定
             
             # For CuDNN
+            # 決定論的アルゴリズムを使用する
             torch.backends.cudnn.deterministic = True
+            
+            # cuDNN が決定的アルゴリズムを使用する
             torch.backends.cudnn.benchmark = False
 
             
@@ -255,7 +258,7 @@ class SyntheticShapes(Dataset):
         """ Export synthetic shapes to disk. """
         
         # Set the global random state for data generation
-        synthetic_util.set_random_state(np.random.RandomState(self.config["generation"]["random_seed"]))
+        synthetic_util.set_random_state(np.random.RandomState(self.config["generation"]["random_seed"])) # 
 
         # Define the export path
         dataset_path = os.path.join(cfg.synthetic_dataroot, self.dataset_name + ".h5")
@@ -263,9 +266,22 @@ class SyntheticShapes(Dataset):
         # Open h5py file
         with h5py.File(dataset_path, "w", libver="latest") as f:
             # Iterate through all types of shape
-            primitives = self.parse_drawing_primitives(self.config["primitives"])
             
-            split_size = self.config["generation"]["split_sizes"][self.mode]
+            """
+             [
+                'draw_lines',
+                'draw_polygon',
+                'draw_multiple_polygons',
+                'draw_star',
+                'draw_checkerboard_multiseg',
+                'draw_stripes_multiseg',
+                'draw_cube',
+                'gaussian_noise'
+            ]
+            """
+            primitives = self.parse_drawing_primitives(self.config["primitives"]) # primitives: "all"
+            
+            split_size = self.config["generation"]["split_sizes"][self.mode] # split_sizes: {'train': 20000, 'val': 2000, 'test': 400}
             
             for prim in primitives:
                 # Create h5 group
