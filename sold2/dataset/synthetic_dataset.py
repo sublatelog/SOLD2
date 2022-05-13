@@ -88,8 +88,8 @@ class SyntheticShapes(Dataset):
                                     ]
 
         # Some cache setting
-        self.dataset_name = self.get_dataset_name()
-        self.cache_name = self.get_cache_name()
+        self.dataset_name = self.get_dataset_name() # "synthetic_shape_train"
+        self.cache_name = self.get_cache_name() # "synthetic_shape_train_cache.pkl"
         self.cache_path = cfg.synthetic_cache_path
         
 
@@ -190,7 +190,7 @@ class SyntheticShapes(Dataset):
         """Get dataset name from dataset config / default config. """
         
         if self.config["dataset_name"] is None:
-            dataset_name = self.default_config["dataset_name"] + "_%s" % self.mode
+            dataset_name = self.default_config["dataset_name"] + "_%s" % self.mode # "synthetic_shape_train"
         else:
             dataset_name = self.config["dataset_name"] + "_%s" % self.mode
 
@@ -496,6 +496,7 @@ class SyntheticShapes(Dataset):
 
     def get_data_from_signature(self, primitive_name, index):
         """ Get data given the primitive name and index ("draw_lines", 10) """
+        
         # Check the primitive name and index
         self._check_primitive_and_index(primitive_name, index)
 
@@ -505,8 +506,7 @@ class SyntheticShapes(Dataset):
         return self.get_data_from_datapoint(datapoint)
 
     def parse_transforms(self, names, all_transforms):
-        trans = all_transforms if (names == 'all') \
-            else (names if isinstance(names, list) else [names])
+        trans = all_transforms if (names == 'all') else (names if isinstance(names, list) else [names])
         assert set(trans) <= set(all_transforms)
         return trans
 
@@ -515,20 +515,14 @@ class SyntheticShapes(Dataset):
         # Get the photometric transform config
         photo_config = self.config["augmentation"]["photometric"]
         if not photo_config["enable"]:
-            raise ValueError(
-        "[Error] Photometric augmentation is not enabled.")
+            raise ValueError("[Error] Photometric augmentation is not enabled.")
         
         # Parse photometric transforms
-        trans_lst = self.parse_transforms(photo_config["primitives"],
-                                          photoaug.available_augmentations)
-        trans_config_lst = [photo_config["params"].get(p, {})
-                            for p in trans_lst]
+        trans_lst = self.parse_transforms(photo_config["primitives"], photoaug.available_augmentations)
+        trans_config_lst = [photo_config["params"].get(p, {}) for p in trans_lst]
 
         # List of photometric augmentation
-        photometric_trans_lst = [
-            getattr(photoaug, trans)(**conf) \
-            for (trans, conf) in zip(trans_lst, trans_config_lst)
-        ]
+        photometric_trans_lst = [getattr(photoaug, trans)(**conf) for (trans, conf) in zip(trans_lst, trans_config_lst)]
 
         return photometric_trans_lst
     
@@ -537,8 +531,7 @@ class SyntheticShapes(Dataset):
         # Get homographic transforms for image
         homo_config = self.config["augmentation"]["homographic"]["params"]
         if not self.config["augmentation"]["homographic"]["enable"]:
-            raise ValueError(
-        "[Error] Homographic augmentation is not enabled")
+            raise ValueError("[Error] Homographic augmentation is not enabled")
 
         # Parse the homographic transforms
         # ToDo: use the shape from the config
@@ -553,26 +546,32 @@ class SyntheticShapes(Dataset):
         # float label len => fraction
         if isinstance(min_label_tmp, float): # Skip if not provided
             min_label_len = min_label_tmp * min(image_shape)
+            
         # int label len => length in pixel
         elif isinstance(min_label_tmp, int):
-            scale_ratio = (self.config["preprocessing"]["resize"]
-                           / self.config["generation"]["image_size"][0])
-            min_label_len = (self.config["generation"]["min_label_len"]
-                             * scale_ratio)
+            scale_ratio = (self.config["preprocessing"]["resize"] / self.config["generation"]["image_size"][0])
+            min_label_len = (self.config["generation"]["min_label_len"] * scale_ratio)
+            
         # if none => no restriction
         else:
             min_label_len = 0
         
         # Initialize the transform
         homographic_trans = homoaug.homography_transform(
-            image_shape, homo_config, 0, min_label_len)
+                                                        image_shape, 
+                                                        homo_config, 
+                                                        0, 
+                                                        min_label_len
+                                                        )
 
         return homographic_trans
 
     @staticmethod
     def junc_to_junc_map(junctions, image_size):
         """ Convert junction points to junction maps. """
+        
         junctions = np.round(junctions).astype(np.int)
+        
         # Clip the boundary by image size
         junctions[:, 0] = np.clip(junctions[:, 0], 0., image_size[0]-1)
         junctions[:, 1] = np.clip(junctions[:, 1], 0., image_size[1]-1)
@@ -585,6 +584,7 @@ class SyntheticShapes(Dataset):
 
     def train_preprocessing(self, data, disable_homoaug=False):
         """ Training preprocessing. """
+        
         # Fetch corresponding entries
         image = data["image"]
         junctions = data["points"]
@@ -595,23 +595,24 @@ class SyntheticShapes(Dataset):
         # Resize the image before the photometric and homographic transforms
         # Check if we need to do the resizing
         if not(list(image.shape) == self.config["preprocessing"]["resize"]):
+            
             # Resize the image and the point location.
             size_old = list(image.shape)
             image = cv2.resize(
-                image, tuple(self.config['preprocessing']['resize'][::-1]),
-                interpolation=cv2.INTER_LINEAR)
+                              image, tuple(self.config['preprocessing']['resize'][::-1]), 
+                              interpolation=cv2.INTER_LINEAR
+                              )
+            
             image = np.array(image, dtype=np.uint8)
 
             junctions = (
-                junctions
-                * np.array(self.config['preprocessing']['resize'], np.float)
-                / np.array(size_old, np.float))
+                junctions * np.array(self.config['preprocessing']['resize'], np.float) / np.array(size_old, np.float)
+            )
 
             # Generate the line heatmap after post-processing
-            junctions_xy = np.flip(np.round(junctions).astype(np.int32),
-                                   axis=1)
-            heatmap = synthetic_util.get_line_heatmap(junctions_xy, line_map,
-                                                      size=image.shape)
+            junctions_xy = np.flip(np.round(junctions).astype(np.int32), axis=1)
+            
+            heatmap = synthetic_util.get_line_heatmap(junctions_xy, line_map, size=image.shape)
             heatmap = (heatmap * 255.).astype(np.uint8)
 
             # Update image size
@@ -628,20 +629,23 @@ class SyntheticShapes(Dataset):
             photo_trans_lst = self.get_photo_transform()
             ### Image transform ###
             np.random.shuffle(photo_trans_lst)
-            image_transform = transforms.Compose(
-                photo_trans_lst + [photoaug.normalize_image()])
+            image_transform = transforms.Compose(photo_trans_lst + [photoaug.normalize_image()])
         else:
             image_transform = photoaug.normalize_image()
+            
         image = image_transform(image)
 
         # Initialize the empty output dict
         outputs = {}
+        
         # Convert to tensor and return the results
         to_tensor = transforms.ToTensor()
+        
         # Check homographic augmentation
         if (self.config["augmentation"]["homographic"]["enable"]
             and disable_homoaug == False):
             homo_trans = self.get_homo_transform()
+            
             # Perform homographic transform
             homo_outputs = homo_trans(image, junctions, line_map)
 
@@ -654,15 +658,13 @@ class SyntheticShapes(Dataset):
             homography_mat = homo_outputs["homo"]
             
             # Optionally put warpping information first.
-            outputs["homography_mat"] = to_tensor(
-                homography_mat).to(torch.float32)[0, ...]
+            outputs["homography_mat"] = to_tensor(homography_mat).to(torch.float32)[0, ...]
 
         junction_map = self.junc_to_junc_map(junctions, image_size)
 
         outputs.update({
             "image": to_tensor(image),
-            "junctions": to_tensor(np.ascontiguousarray(
-                junctions).copy()).to(torch.float32)[0, ...],
+            "junctions": to_tensor(np.ascontiguousarray(junctions).copy()).to(torch.float32)[0, ...],
             "junction_map": to_tensor(junction_map).to(torch.int),
             "line_map": to_tensor(line_map).to(torch.int32)[0, ...],
             "heatmap": to_tensor(heatmap).to(torch.int32),
@@ -685,19 +687,23 @@ class SyntheticShapes(Dataset):
             # Resize the image and the point location.
             size_old = list(image.shape)
             image = cv2.resize(
-                image, tuple(self.config['preprocessing']['resize'][::-1]),
-                interpolation=cv2.INTER_LINEAR)
+                              image, tuple(self.config['preprocessing']['resize'][::-1]),
+                              interpolation=cv2.INTER_LINEAR
+                              )
+            
             image = np.array(image, dtype=np.uint8)
 
-            points = (points
-                      * np.array(self.config['preprocessing']['resize'],
-                                 np.float)
-                      / np.array(size_old, np.float))
+            points = (points * np.array(self.config['preprocessing']['resize'], np.float) / np.array(size_old, np.float))
 
             # Generate the line heatmap after post-processing
             junctions = np.flip(np.round(points).astype(np.int32), axis=1)
-            heatmap = synthetic_util.get_line_heatmap(junctions, line_map,
-                                                      size=image.shape)
+            
+            heatmap = synthetic_util.get_line_heatmap(
+                                                      junctions, 
+                                                      line_map, 
+                                                      size=image.shape
+                                                      )
+            
             heatmap = (heatmap * 255.).astype(np.uint8)
 
             # Update image size
@@ -734,10 +740,10 @@ class SyntheticShapes(Dataset):
             data = self.get_data_from_datapoint(datapoint, reader)
 
         # Apply different transforms in different mod.
-        if (self.mode == "train"
-            or self.config["add_augmentation_to_all_splits"]):
+        if (self.mode == "train" or self.config["add_augmentation_to_all_splits"]):
             return_type = self.config.get("return_type", "single")
             data = self.train_preprocessing(data)
+            
         else:
             data = self.test_preprocessing(data)
 
@@ -790,12 +796,9 @@ class SyntheticShapes(Dataset):
         """ Check if the primitve and index are valid. """
         # Check primitives
         if not primitive in self.available_primitives:
-            raise ValueError(
-                "[Error] The primitive is not in available primitives.")
+            raise ValueError("[Error] The primitive is not in available primitives.")
 
         prim_len = len(self.filename_dataset[primitive])
         # Check the index
         if not index < prim_len:
-            raise ValueError(
-                "[Error] The index exceeds the total file counts %d for %s"
-                % (prim_len, primitive))
+            raise ValueError("[Error] The index exceeds the total file counts %d for %s" % (prim_len, primitive))
