@@ -17,46 +17,57 @@ def set_random_state(state):
 
 
 def get_random_color(background_color):
-    """ Output a random scalar in grayscale with a least a small contrast
-        with the background color. """
+    """ Output a random scalar in grayscale with a least a small contrast with the background color. """
     color = random_state.randint(256)
     if abs(color - background_color) < 30:  # not enough contrast
         color = (color + 128) % 256
+        
     return color
 
 
 def get_different_color(previous_colors, min_dist=50, max_count=20):
-    """ Output a color that contrasts with the previous colors.
+    """ 
+    Output a color that contrasts with the previous colors.
     Parameters:
       previous_colors: np.array of the previous colors
-      min_dist: the difference between the new color and
-                the previous colors must be at least min_dist
+      min_dist: the difference between the new color and the previous colors must be at least min_dist
       max_count: maximal number of iterations
     """
+    
     color = random_state.randint(256)
     count = 0
     while np.any(np.abs(previous_colors - color) < min_dist) and count < max_count:
         count += 1
         color = random_state.randint(256)
+        
     return color
 
 
 def add_salt_and_pepper(img):
     """ Add salt and pepper noise to an image. """
+    
     noise = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
-    cv.randu(noise, 0, 255)
+    
+    cv.randu(noise, 0, 255) # 一様乱数を要素に持つ行ベクトル
     black = noise < 30
     white = noise > 225
     img[white > 0] = 255
     img[black > 0] = 0
     cv.blur(img, (5, 5), img)
+    
     return np.empty((0, 2), dtype=np.int)
 
 
-def generate_background(size=(960, 1280), nb_blobs=100, min_rad_ratio=0.01,
-                        max_rad_ratio=0.05, min_kernel_size=50,
-                        max_kernel_size=300):
-    """ Generate a customized background image.
+def generate_background(size=(960, 1280), 
+                        nb_blobs=100, 
+                        min_rad_ratio=0.01,
+                        max_rad_ratio=0.05, 
+                        min_kernel_size=50,
+                        max_kernel_size=300
+                       ):
+    
+    """ 
+    Generate a customized background image.
     Parameters:
       size: size of the image
       nb_blobs: number of circles to draw
@@ -65,86 +76,121 @@ def generate_background(size=(960, 1280), nb_blobs=100, min_rad_ratio=0.01,
       min_kernel_size: minimal size of the kernel
       max_kernel_size: maximal size of the kernel
     """
+    
     img = np.zeros(size, dtype=np.uint8)
     dim = max(size)
     cv.randu(img, 0, 255)
     cv.threshold(img, random_state.randint(256), 255, cv.THRESH_BINARY, img)
+    
     background_color = int(np.mean(img))
+    
     blobs = np.concatenate(
-        [random_state.randint(0, size[1], size=(nb_blobs, 1)),
-         random_state.randint(0, size[0], size=(nb_blobs, 1))], axis=1)
+                          [random_state.randint(0, size[1], size=(nb_blobs, 1)), random_state.randint(0, size[0], size=(nb_blobs, 1))],  # 横, 縦
+                          axis=1
+                          )
+    
     for i in range(nb_blobs):
         col = get_random_color(background_color)
-        cv.circle(img, (blobs[i][0], blobs[i][1]),
-                  np.random.randint(int(dim * min_rad_ratio),
-                                    int(dim * max_rad_ratio)),
-                  col, -1)
+        
+        cv.circle(img, 
+                  (blobs[i][0], blobs[i][1]),
+                  np.random.randint(int(dim * min_rad_ratio), int(dim * max_rad_ratio)),
+                  col, 
+                  -1
+                 )
+        
     kernel_size = random_state.randint(min_kernel_size, max_kernel_size)
     cv.blur(img, (kernel_size, kernel_size), img)
     return img
 
 
-def generate_custom_background(size, background_color, nb_blobs=3000,
-                               kernel_boundaries=(50, 100)):
-    """ Generate a customized background to fill the shapes.
+def generate_custom_background(size, 
+                               background_color, 
+                               nb_blobs=3000,
+                               kernel_boundaries=(50, 100)
+                              ):
+    
+    """ 
+    Generate a customized background to fill the shapes.
     Parameters:
       background_color: average color of the background image
       nb_blobs: number of circles to draw
       kernel_boundaries: interval of the possible sizes of the kernel
     """
+    
     img = np.zeros(size, dtype=np.uint8)
     img = img + get_random_color(background_color)
-    blobs = np.concatenate(
-        [np.random.randint(0, size[1], size=(nb_blobs, 1)),
-         np.random.randint(0, size[0], size=(nb_blobs, 1))], axis=1)
+    blobs = np.concatenate([np.random.randint(0, size[1], size=(nb_blobs, 1)), np.random.randint(0, size[0], size=(nb_blobs, 1))], axis=1)
+    
     for i in range(nb_blobs):
         col = get_random_color(background_color)
-        cv.circle(img, (blobs[i][0], blobs[i][1]),
-                  np.random.randint(20), col, -1)
-    kernel_size = np.random.randint(kernel_boundaries[0],
-                                    kernel_boundaries[1])
+        
+        cv.circle(img, 
+                  (blobs[i][0], blobs[i][1]),
+                  np.random.randint(20), 
+                  col, 
+                  -1
+                 )
+        
+    kernel_size = np.random.randint(kernel_boundaries[0], kernel_boundaries[1])
     cv.blur(img, (kernel_size, kernel_size), img)
+    
     return img
 
 
 def final_blur(img, kernel_size=(5, 5)):
-    """ Gaussian blur applied to an image.
+    """ 
+    Gaussian blur applied to an image.
     Parameters:
       kernel_size: size of the kernel
     """
+    
     cv.GaussianBlur(img, kernel_size, 0, img)
 
-
+# counter-clockwise:反時計回り
 def ccw(A, B, C, dim):
     """ Check if the points are listed in counter-clockwise order. """
+    
     if dim == 2:  # only 2 dimensions
-        return((C[:, 1] - A[:, 1]) * (B[:, 0] - A[:, 0])
-               > (B[:, 1] - A[:, 1]) * (C[:, 0] - A[:, 0]))
+        return(
+               (C[:, 1] - A[:, 1]) * (B[:, 0] - A[:, 0]) 
+               > 
+               (B[:, 1] - A[:, 1]) * (C[:, 0] - A[:, 0])
+               )
+    
     else:  # dim should be equal to 3
-        return((C[:, 1, :] - A[:, 1, :])
-               * (B[:, 0, :] - A[:, 0, :])
-               > (B[:, 1, :] - A[:, 1, :])
-               * (C[:, 0, :] - A[:, 0, :]))
+        return(
+              (C[:, 1, :] - A[:, 1, :]) * (B[:, 0, :] - A[:, 0, :]) 
+              > 
+              (B[:, 1, :] - A[:, 1, :]) * (C[:, 0, :] - A[:, 0, :])
+              )
 
 
 def intersect(A, B, C, D, dim):
     """ Return true if line segments AB and CD intersect """
-    return np.any((ccw(A, C, D, dim) != ccw(B, C, D, dim)) &
-                  (ccw(A, B, C, dim) != ccw(A, B, D, dim)))
+    
+    return np.any(
+                  (ccw(A, C, D, dim) != ccw(B, C, D, dim)) 
+                  &
+                  (ccw(A, B, C, dim) != ccw(A, B, D, dim))
+                 )
 
 
 def keep_points_inside(points, size):
-    """ Keep only the points whose coordinates are inside the dimensions of
-    the image of size 'size' """
-    mask = (points[:, 0] >= 0) & (points[:, 0] < size[1]) &\
-           (points[:, 1] >= 0) & (points[:, 1] < size[0])
+    """ 
+    Keep only the points whose coordinates are inside the dimensions of the image of size 'size' 
+    """
+    mask = (points[:, 0] >= 0) & (points[:, 0] < size[1]) & (points[:, 1] >= 0) & (points[:, 1] < size[0])
+            
     return points[mask, :]
 
 
 def get_unique_junctions(segments, min_label_len):
     """ Get unique junction points from line segments. """
+    
     # Get all junctions from segments
     junctions_all = np.concatenate((segments[:, :2], segments[:, 2:]), axis=0)
+    
     if junctions_all.shape[0] == 0:
         junc_points = None
         line_map = None
@@ -158,8 +204,13 @@ def get_unique_junctions(segments, min_label_len):
     return junc_points, line_map
 
 
-def get_line_map(points: np.ndarray, segments: np.ndarray) -> np.ndarray:
+def get_line_map(
+                 points: np.ndarray, 
+                 segments: np.ndarray
+                 ) -> np.ndarray:
+    
     """ Get line map given the points and segment sets. """
+    
     # create empty line map
     num_point = points.shape[0]
     line_map = np.zeros([num_point, num_point])
