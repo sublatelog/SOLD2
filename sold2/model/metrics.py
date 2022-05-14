@@ -262,8 +262,17 @@ class junction_precision(object):
 
         # Deal with the corner case of the prediction
         if np.sum(junc_pred) > 0:
-            precision = (np.sum(junc_pred * junc_gt.squeeze())
-                         / np.sum(junc_pred))
+            
+            print("junc_pred")
+            print(junc_pred)
+            print("junc_gt.squeeze()")
+            print(junc_gt.squeeze())
+            
+            precision = (np.sum(junc_pred * junc_gt.squeeze()) / np.sum(junc_pred))
+            
+            print("precision")
+            print(precision)
+            
         else:
             precision = 0
 
