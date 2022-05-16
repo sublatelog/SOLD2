@@ -135,19 +135,36 @@ class Metrics(object):
 
 
 class AverageMeter(object):
-    def __init__(self, junc_metric_lst=None, heatmap_metric_lst=None,
-                 is_training=True, desc_metric_lst=None):
+    def __init__(self, 
+                 junc_metric_lst=None, 
+                 heatmap_metric_lst=None,
+                 is_training=True, 
+                 desc_metric_lst=None
+                ):
+        
         # List supported metrics
-        self.supported_junc_metrics = ["junc_precision", "junc_precision_nms",
-                                       "junc_recall", "junc_recall_nms"]
+        self.supported_junc_metrics = ["junc_precision", 
+                                       "junc_precision_nms",
+                                       "junc_recall", 
+                                       "junc_recall_nms"]
+        
         self.supported_heatmap_metrics = ["heatmap_precision",
                                           "heatmap_recall"]
-        self.supported_pr_metrics = ["junc_pr", "junc_nms_pr"]
+        
+        self.supported_pr_metrics = ["junc_pr", 
+                                     "junc_nms_pr"]
+        
         self.supported_desc_metrics = ["matching_score"]
+        
         # Record loss in training mode
+        
         # if is_training:
         self.supported_loss = [
-            "junc_loss", "heatmap_loss", "descriptor_loss", "total_loss"]
+                                "junc_loss", 
+                                "heatmap_loss", 
+                                "descriptor_loss", 
+                                "total_loss"
+                              ]
 
         self.is_training = is_training
 
@@ -156,10 +173,12 @@ class AverageMeter(object):
             self.junc_metric_lst = self.supported_junc_metrics
         else:
             self.junc_metric_lst = junc_metric_lst
+            
         if heatmap_metric_lst is None:
             self.heatmap_metric_lst = self.supported_heatmap_metrics
         else:
             self.heatmap_metric_lst = heatmap_metric_lst
+            
         # For the descriptors, the default None assumes no desc metric at all
         if desc_metric_lst is None:
             self.desc_metric_lst = []
@@ -169,17 +188,20 @@ class AverageMeter(object):
             self.desc_metric_lst = desc_metric_lst
 
         if not self._check_metrics():
-            raise ValueError(
-                "[Error] Some elements in the metric_lst are invalid.")
+            raise ValueError("[Error] Some elements in the metric_lst are invalid.")
 
         # Initialize the results
         self.metric_results = {}
         for key in (self.supported_junc_metrics
                     + self.supported_heatmap_metrics
-                    + self.supported_loss + self.supported_desc_metrics):
+                    + self.supported_loss 
+                    + self.supported_desc_metrics
+                   ):            
             self.metric_results[key] = 0.
+            
         for key in self.supported_pr_metrics:
             zero_lst = [0 for _ in range(50)]
+            
             self.metric_results[key] = {
                 "tp": zero_lst,
                 "tn": zero_lst,
@@ -192,11 +214,15 @@ class AverageMeter(object):
         # Initialize total count
         self.count = 0
 
-    def update(self, metrics, loss_dict=None, num_samples=1):
+    def update(self, 
+               metrics, 
+               loss_dict=None, 
+               num_samples=1
+              ):
         # loss should be given in the training mode
+        
         if self.is_training and (loss_dict is None):
-            raise ValueError(
-                "[Error] loss info should be given in the training mode.")
+            raise ValueError("[Error] loss info should be given in the training mode.")
 
         # update total counts
         self.count += num_samples
@@ -205,8 +231,7 @@ class AverageMeter(object):
         for met in (self.supported_junc_metrics
                     + self.supported_heatmap_metrics
                     + self.supported_desc_metrics):
-            self.metric_results[met] += (num_samples
-                                         * metrics.metric_results[met])
+            self.metric_results[met] += (num_samples * metrics.metric_results[met])
 
         # Update all the losses
         for loss in loss_dict.keys():
@@ -214,20 +239,21 @@ class AverageMeter(object):
 
         # Update all pr counts
         for pr_met in self.supported_pr_metrics:
-            # Update all tp, tn, fp, fn, precision, and recall.
+            
+            # Update all tp, tn, fp, fn, precision, and recall.            
             for key in metrics.metric_results[pr_met].keys():
                 # Update each interval
                 for idx in range(len(self.metric_results[pr_met][key])):
-                    self.metric_results[pr_met][key][idx] += (
-                        num_samples
-                        * metrics.metric_results[pr_met][key][idx])
+                    self.metric_results[pr_met][key][idx] += (num_samples * metrics.metric_results[pr_met][key][idx])
 
+    # 各指標を全体に対する割合に変換                
     def average(self):
         results = {}
         for met in self.metric_results.keys():
             # Skip pr curve metrics
             if not met in self.supported_pr_metrics:
-                results[met] = self.metric_results[met] / self.count
+                results[met] = self.metric_results[met] / self.count # self.count：全体の個数で割って割合を出す
+                
             # Only update precision and recall in pr metrics
             else:
                 met_results = {
@@ -239,18 +265,18 @@ class AverageMeter(object):
                     "recall": []
                 }
                 for idx in range(len(self.metric_results[met]["precision"])):
-                    met_results["precision"].append(
-                        self.metric_results[met]["precision"][idx]
-                        / self.count)
-                    met_results["recall"].append(
-                        self.metric_results[met]["recall"][idx] / self.count)
+                    met_results["precision"].append(self.metric_results[met]["precision"][idx] / self.count)
+                    met_results["recall"].append(self.metric_results[met]["recall"][idx] / self.count)
 
                 results[met] = met_results
 
         return results
 
+    
+    # 全ての指標が有効化されているか確認
     def _check_metrics(self):
         """ Check if all input metrics are valid. """
+        
         flag = True
         for metric in self.junc_metric_lst:
             if not metric in self.supported_junc_metrics:
@@ -281,8 +307,7 @@ class junction_precision(object):
 
         # Deal with the corner case of the prediction
         if np.sum(junc_pred) > 0:
-            precision = (np.sum(junc_pred * junc_gt.squeeze())
-                         / np.sum(junc_pred))
+            precision = (np.sum(junc_pred * junc_gt.squeeze()) / np.sum(junc_pred))
         else:
             precision = 0
 
