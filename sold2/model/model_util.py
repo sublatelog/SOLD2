@@ -101,7 +101,16 @@ def get_model(model_cfg=None, loss_weights=None, mode="train"):
   
 """
 backbone_net > features
-  HourglassBackbone()
+  HourglassNet
+  c_b_a > layer1 > max_p > layer2 > layer3 > [hg > res > fc > score > out]x2
+                                                       > fc_
+                                                       > score_ > x = x + fc_ + score_
+                                                       
+  layer1 : residual[Bottleneck2D > x + downsample]                                                    
+  hg : Hourglass[Bottleneck2Dx4 > max_pool2d > Bottleneck2D_lowx4 > Bottleneck2D_lowx4 > F.interpolate > up1 + up2 > out]
+  res : residual[Bottleneck2D]
+  fc : fc[b_c_a]
+  score : head[nn.Conv2D]
 
 - junction_decoder(features)
   SuperpointDecoder()
