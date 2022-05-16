@@ -97,6 +97,22 @@ def get_model(model_cfg=None, loss_weights=None, mode="train"):
     return model
 
 
+  
+  
+"""
+backbone_net > features
+  HourglassBackbone()
+
+- junction_decoder(features)
+  SuperpointDecoder()
+  
+- self.heatmap_decoder(features)
+  PixelShuffleDecoder(self.feat_channel, num_upsample=2)
+
+* get_descriptor_decoder()
+  SuperpointDescriptor()
+  
+"""
 class SOLD2Net(nn.Module):
     """ Full network for SOLD². """
     def __init__(self, model_cfg):
@@ -165,66 +181,55 @@ class SOLD2Net(nn.Module):
 
     def get_junction_decoder(self):
         """ Get the junction decoder. """
-        if (not self.cfg["junction_decoder"]
-            in self.supported_junction_decoder):
-            raise ValueError(
-                "[Error] The junction decoder selection is not supported.")
+        
+        if (not self.cfg["junction_decoder"] in self.supported_junction_decoder):
+            raise ValueError("[Error] The junction decoder selection is not supported.")
 
         # superpoint decoder
         if self.cfg["junction_decoder"] == "superpoint_decoder":
-            decoder = SuperpointDecoder(self.feat_channel,
-                                        self.cfg["backbone"])
+            decoder = SuperpointDecoder(self.feat_channel, self.cfg["backbone"])
         else:
-            raise ValueError(
-                "[Error] The junction decoder selection is not supported.")
+            raise ValueError("[Error] The junction decoder selection is not supported.")
 
         return decoder
 
     def get_heatmap_decoder(self):
         """ Get the heatmap decoder. """
         if not self.cfg["heatmap_decoder"] in self.supported_heatmap_decoder:
-            raise ValueError(
-                "[Error] The heatmap decoder selection is not supported.")
+            raise ValueError("[Error] The heatmap decoder selection is not supported.")
 
         # Pixel_shuffle decoder
         if self.cfg["heatmap_decoder"] == "pixel_shuffle":
             if self.cfg["backbone"] == "lcnn":
-                decoder = PixelShuffleDecoder(self.feat_channel,
-                                              num_upsample=2)
+                decoder = PixelShuffleDecoder(self.feat_channel, num_upsample=2)
             elif self.cfg["backbone"] == "superpoint":
-                decoder = PixelShuffleDecoder(self.feat_channel,
-                                              num_upsample=3)
+                decoder = PixelShuffleDecoder(self.feat_channel, num_upsample=3)
             else:
                 raise ValueError("[Error] Unknown backbone option.")
+                
         # Pixel_shuffle decoder with single channel output
         elif self.cfg["heatmap_decoder"] == "pixel_shuffle_single":
             if self.cfg["backbone"] == "lcnn":
-                decoder = PixelShuffleDecoder(
-                    self.feat_channel, num_upsample=2, output_channel=1)
+                decoder = PixelShuffleDecoder(self.feat_channel, num_upsample=2, output_channel=1)
             elif self.cfg["backbone"] == "superpoint":
-                decoder = PixelShuffleDecoder(
-                    self.feat_channel, num_upsample=3, output_channel=1)
+                decoder = PixelShuffleDecoder(self.feat_channel, num_upsample=3, output_channel=1)
             else:
                 raise ValueError("[Error] Unknown backbone option.")
         else:
-            raise ValueError(
-                "[Error] The heatmap decoder selection is not supported.")
+            raise ValueError("[Error] The heatmap decoder selection is not supported.")
 
         return decoder
 
     def get_descriptor_decoder(self):
         """ Get the descriptor decoder. """
-        if (not self.cfg["descriptor_decoder"]
-            in self.supported_descriptor_decoder):
-            raise ValueError(
-                "[Error] The descriptor decoder selection is not supported.")
+        if (not self.cfg["descriptor_decoder"] in self.supported_descriptor_decoder):
+            raise ValueError("[Error] The descriptor decoder selection is not supported.")
 
         # SuperPoint descriptor
         if self.cfg["descriptor_decoder"] == "superpoint_descriptor":
             decoder = SuperpointDescriptor(self.feat_channel)
         else:
-            raise ValueError(
-                "[Error] The descriptor decoder selection is not supported.")
+            raise ValueError("[Error] The descriptor decoder selection is not supported.")
 
         return decoder
 
