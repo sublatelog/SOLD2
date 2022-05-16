@@ -8,36 +8,84 @@ from .nets.heatmap_decoder import PixelShuffleDecoder
 from .nets.descriptor_decoder import SuperpointDescriptor
 
 
+# sold2/config/train_detector.yaml
+"""
+### [Model parameters]
+model_name: "lcnn_simple"
+model_architecture: "simple"
+
+# Backbone related config
+backbone: "lcnn"
+backbone_cfg:
+  input_channel: 1 # Use RGB images or grayscale images.
+  depth: 4
+  num_stacks: 2
+  num_blocks: 1
+  num_classes: 5
+  
+# Junction decoder related config
+junction_decoder: "superpoint_decoder"
+junc_decoder_cfg:
+
+# Heatmap decoder related config
+heatmap_decoder: "pixel_shuffle"
+heatmap_decoder_cfg:
+
+# Shared configurations
+grid_size: 8
+keep_border_valid: True
+
+# Threshold of junction detection
+detection_thresh: 0.0153846 # 1/65
+
+# Threshold of heatmap detection
+prob_thresh: 0.5
+
+### [Loss parameters]
+weighting_policy: "dynamic"
+
+# [Heatmap loss]
+w_heatmap: 0.
+w_heatmap_class: 1
+heatmap_loss_func: "cross_entropy"
+heatmap_loss_cfg:
+  policy: "dynamic"
+  
+# [Junction loss]
+w_junc: 0.
+junction_loss_func: "superpoint"
+junction_loss_cfg:
+  policy: "dynamic"
+"""
+
 def get_model(model_cfg=None, loss_weights=None, mode="train"):
     """ Get model based on the model configuration. """
+    
     # Check dataset config is given
     if model_cfg is None:
         raise ValueError("[Error] The model config is required!")
 
     # List the supported options here
     print("\n\n\t--------Initializing model----------")
+    
     supported_arch = ["simple"]
     if not model_cfg["model_architecture"] in supported_arch:
-        raise ValueError(
-            "[Error] The model architecture is not in supported arch!")
+        raise ValueError("[Error] The model architecture is not in supported arch!")
 
     if model_cfg["model_architecture"] == "simple":
         model = SOLD2Net(model_cfg)
     else:
-        raise ValueError(
-            "[Error] The model architecture is not in supported arch!")
+        raise ValueError("[Error] The model architecture is not in supported arch!")
 
     # Optionally register loss weights to the model
     if mode == "train":
         if loss_weights is not None:
             for param_name, param in loss_weights.items():
                 if isinstance(param, nn.Parameter):
-                    print("\t [Debug] Adding %s with value %f to model"
-                          % (param_name, param.item()))
+                    print("\t [Debug] Adding %s with value %f to model" % (param_name, param.item()))
                     model.register_parameter(param_name, param)
         else:
-            raise ValueError(
-                "[Error] the loss weights can not be None in dynamic weighting mode during training.")
+            raise ValueError("[Error] the loss weights can not be None in dynamic weighting mode during training.")
 
     # Display some summary info.
     print("\tModel architecture: %s" % model_cfg["model_architecture"])
@@ -65,8 +113,7 @@ class SOLD2Net(nn.Module):
         self.junction_decoder = self.get_junction_decoder()
 
         # List supported heatmap decoder options
-        self.supported_heatmap_decoder = ["pixel_shuffle",
-                                          "pixel_shuffle_single"]
+        self.supported_heatmap_decoder = ["pixel_shuffle", "pixel_shuffle_single"]
         self.heatmap_decoder = self.get_heatmap_decoder()
 
         # List supported descriptor decoder options
@@ -98,8 +145,7 @@ class SOLD2Net(nn.Module):
     def get_backbone(self):
         """ Retrieve the backbone encoder network. """
         if not self.cfg["backbone"] in self.supported_backbone:
-            raise ValueError(
-                "[Error] The backbone selection is not supported.")
+            raise ValueError("[Error] The backbone selection is not supported.")
 
         # lcnn backbone (stacked hourglass)
         if self.cfg["backbone"] == "lcnn":
@@ -113,8 +159,7 @@ class SOLD2Net(nn.Module):
             feat_channel = 128
 
         else:
-            raise ValueError(
-                "[Error] The backbone selection is not supported.")
+            raise ValueError("[Error] The backbone selection is not supported.")
 
         return backbone, feat_channel
 
