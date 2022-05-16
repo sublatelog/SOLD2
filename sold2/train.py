@@ -280,40 +280,50 @@ def train_single_epoch(
     else:
         average_meter = AverageMeter(is_training=True)
 
-    # The training loop
+    # The training loop  ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
     for idx, data in enumerate(train_loader):
         if compute_descriptors:
             junc_map = data["ref_junction_map"].cuda()
             junc_map2 = data["target_junction_map"].cuda()
+            
             heatmap = data["ref_heatmap"].cuda()
             heatmap2 = data["target_heatmap"].cuda()
+            
             line_points = data["ref_line_points"].cuda()
             line_points2 = data["target_line_points"].cuda()
+            
             line_indices = data["ref_line_indices"].cuda()
+            
             valid_mask = data["ref_valid_mask"].cuda()
             valid_mask2 = data["target_valid_mask"].cuda()
+            
             input_images = data["ref_image"].cuda()
             input_images2 = data["target_image"].cuda()
 
-            # Run the forward pass
+            # Run the forward pass ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
             outputs = model(input_images)
             outputs2 = model(input_images2)
 
-            # Compute losses
+            # Compute losses ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
             losses = loss_func.forward_descriptors(
                                                     outputs["junctions"], 
                                                     outputs2["junctions"],
                                                     junc_map, 
                                                     junc_map2, 
+              
                                                     outputs["heatmap"], 
                                                     outputs2["heatmap"],
                                                     heatmap, 
                                                     heatmap2, 
+              
                                                     line_points, 
                                                     line_points2,
+              
                                                     line_indices, 
+              
                                                     outputs['descriptors'], 
                                                     outputs2['descriptors'],
+              
                                                     epoch, 
                                                     valid_mask, 
                                                     valid_mask2
@@ -328,7 +338,7 @@ def train_single_epoch(
             # Run the forward pass
             outputs = model(input_images)
 
-            # Compute losses
+            # Compute losses ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
             losses = loss_func(
                               outputs["junctions"], 
                               junc_map,
@@ -336,7 +346,9 @@ def train_single_epoch(
                               heatmap,
                               valid_mask
                               )
-        
+            
+            
+        # total_loss ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- -
         total_loss = losses["total_loss"]
 
         # Update the model
@@ -349,9 +361,11 @@ def train_single_epoch(
         
         
         ############## Measure the metric error #########################
+        # metric ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
         # Only do this when needed
         if (((idx % model_cfg["disp_freq"]) == 0) or ((idx % model_cfg["summary_freq"]) == 0)):
           
+            # 
             junc_np = convert_junc_predictions(
                                                 outputs["junctions"], 
                                                 model_cfg["grid_size"],
@@ -372,7 +386,7 @@ def train_single_epoch(
             heatmap_gt_np = heatmap.cpu().numpy().transpose(0, 2, 3, 1)
             valid_mask_np = valid_mask.cpu().numpy().transpose(0, 2, 3, 1)
 
-            # Evaluate metric results
+            # Evaluate metric results ---------- ---------- ---------- ---------- ---------- ---------- ----------
             if compute_descriptors:
                 metric_func.evaluate(
                                     junc_np["junc_pred"], 
@@ -412,6 +426,7 @@ def train_single_epoch(
                 descriptor_loss = losses["descriptor_loss"].item()
                 loss_dict["descriptor_loss"] = losses["descriptor_loss"].item()
 
+            # 
             average_meter.update(
                                   metric_func, 
                                   loss_dict, 
@@ -422,40 +437,46 @@ def train_single_epoch(
         if (idx % model_cfg["disp_freq"]) == 0:
             results = metric_func.metric_results
             average = average_meter.average()
+            
             # Get gpu memory usage in GB
             gpu_mem_usage = torch.cuda.max_memory_allocated() / (1024 ** 3)
+            
             if compute_descriptors:
                 print("Epoch [%d / %d] Iter [%d / %d] loss=%.4f (%.4f), junc_loss=%.4f (%.4f), heatmap_loss=%.4f (%.4f), descriptor_loss=%.4f (%.4f), gpu_mem=%.4fGB"
-                      % (epoch, model_cfg["epochs"], idx, len(train_loader),
-                         total_loss.item(), average["total_loss"], junc_loss,
-                         average["junc_loss"], heatmap_loss,
-                         average["heatmap_loss"], descriptor_loss,
-                         average["descriptor_loss"], gpu_mem_usage))
+                      % (epoch, model_cfg["epochs"], 
+                         idx, len(train_loader),
+                         total_loss.item(), 
+                         average["total_loss"], 
+                         junc_loss,
+                         average["junc_loss"], 
+                         heatmap_loss,
+                         average["heatmap_loss"], 
+                         descriptor_loss,
+                         average["descriptor_loss"], 
+                         gpu_mem_usage))
             else:
                 print("Epoch [%d / %d] Iter [%d / %d] loss=%.4f (%.4f), junc_loss=%.4f (%.4f), heatmap_loss=%.4f (%.4f), gpu_mem=%.4fGB"
                       % (epoch, model_cfg["epochs"], idx, len(train_loader),
-                         total_loss.item(), average["total_loss"],
-                         junc_loss, average["junc_loss"], heatmap_loss,
-                         average["heatmap_loss"], gpu_mem_usage))
-            print("\t Junction     precision=%.4f (%.4f) / recall=%.4f (%.4f)"
-                  % (results["junc_precision"], average["junc_precision"],
-                     results["junc_recall"], average["junc_recall"]))
-            print("\t Junction nms precision=%.4f (%.4f) / recall=%.4f (%.4f)"
-                  % (results["junc_precision_nms"],
-                     average["junc_precision_nms"],
-                     results["junc_recall_nms"], average["junc_recall_nms"]))
-            print("\t Heatmap      precision=%.4f (%.4f) / recall=%.4f (%.4f)"
-                  %(results["heatmap_precision"],
-                    average["heatmap_precision"],
-                    results["heatmap_recall"], average["heatmap_recall"]))
+                         total_loss.item(), 
+                         average["total_loss"],
+                         junc_loss, 
+                         average["junc_loss"], 
+                         heatmap_loss,
+                         average["heatmap_loss"], 
+                         gpu_mem_usage))
+                
+            print("\t Junction     precision=%.4f (%.4f) / recall=%.4f (%.4f)" % (results["junc_precision"], average["junc_precision"], results["junc_recall"], average["junc_recall"]))
+            print("\t Junction nms precision=%.4f (%.4f) / recall=%.4f (%.4f)" % (results["junc_precision_nms"], average["junc_precision_nms"], results["junc_recall_nms"], average["junc_recall_nms"]))
+            print("\t Heatmap      precision=%.4f (%.4f) / recall=%.4f (%.4f)" %(results["heatmap_precision"], average["heatmap_precision"], results["heatmap_recall"], average["heatmap_recall"]))
+            
             if compute_descriptors:
-                print("\t Descriptors  matching score=%.4f (%.4f)"
-                      %(results["matching_score"], average["matching_score"]))
+                print("\t Descriptors  matching score=%.4f (%.4f)" %(results["matching_score"], average["matching_score"]))
 
         # Record summaries
         if (idx % model_cfg["summary_freq"]) == 0:
             results = metric_func.metric_results
             average = average_meter.average()
+            
             # Add the shared losses
             scalar_summaries = {
                 "junc_loss": junc_loss,
@@ -463,6 +484,7 @@ def train_single_epoch(
                 "total_loss": total_loss.detach().cpu().numpy(),
                 "metrics": results,
                 "average": average}
+            
             # Add descriptor terms
             if compute_descriptors:
                 scalar_summaries["descriptor_loss"] = descriptor_loss
@@ -474,10 +496,9 @@ def train_single_epoch(
             scalar_summaries["reg_loss"] = losses["reg_loss"].item()
 
             num_images = 3
-            junc_pred_binary = (junc_np["junc_pred"][:num_images, ...]
-                                > model_cfg["detection_thresh"])
-            junc_pred_nms_binary = (junc_np["junc_pred_nms"][:num_images, ...]
-                                    > model_cfg["detection_thresh"])
+            junc_pred_binary = (junc_np["junc_pred"][:num_images, ...] > model_cfg["detection_thresh"])
+            junc_pred_nms_binary = (junc_np["junc_pred_nms"][:num_images, ...] > model_cfg["detection_thresh"])
+            
             image_summaries = {
                 "image": input_images.cpu().numpy()[:num_images, ...],
                 "valid_mask": valid_mask_np[:num_images, ...],
@@ -487,10 +508,14 @@ def train_single_epoch(
                 "junc_prob_map": junc_np["junc_prob"][:num_images, ...],
                 "heatmap_pred": heatmap_np[:num_images, ...],
                 "heatmap_gt": heatmap_gt_np[:num_images, ...]}
+            
             # Record the training summary
             record_train_summaries(
-                writer, global_step, scalars=scalar_summaries,
-                images=image_summaries)
+                                   writer, 
+                                   global_step, 
+                                   scalars=scalar_summaries,
+                                   images=image_summaries
+                                   )
 
 
 def validate(model, model_cfg, loss_func, metric_func, val_loader, writer, epoch):
