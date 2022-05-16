@@ -438,29 +438,46 @@ class matching_score(object):
         matching_score = matching_score.float().mean()
         return matching_score
 
-
-def super_nms(prob_predictions, dist_thresh, prob_thresh=0.01, top_k=0):
+# detect_thresh=1/65, 
+# topk=300
+def super_nms(prob_predictions, 
+              dist_thresh, 
+              prob_thresh=0.01, 
+              top_k=0):
+    
     """ Non-maximum suppression adapted from SuperPoint. """
+    
     # Iterate through batch dimension
     im_h = prob_predictions.shape[1]
     im_w = prob_predictions.shape[2]
+    
     output_lst = []
     for i in range(prob_predictions.shape[0]):
         # print(i)
         prob_pred = prob_predictions[i, ...]
-        # Filter the points using prob_thresh
+        
+        # 信頼度と閾値の比較. Filter the points using prob_thresh
         coord = np.where(prob_pred >= prob_thresh) # HW format
-        points = np.concatenate((coord[0][..., None], coord[1][..., None]),
-                                axis=1) # HW format
+        
+        # (x, y)の列は横に連結
+        points = np.concatenate(
+                                (coord[0][..., None],  coord[1][..., None]),
+                                axis=1
+                               ) # HW format
 
         # Get the probability score
         prob_score = prob_pred[points[:, 0], points[:, 1]]
 
         # Perform super nms
         # Modify the in_points to xy format (instead of HW format)
-        in_points = np.concatenate((coord[1][..., None], coord[0][..., None],
-                                    prob_score), axis=1).T
+        in_points = np.concatenate(
+                                    (coord[1][..., None], coord[0][..., None],
+                                    prob_score
+                                  ), axis=1).T
+        
+        # nms_fast():
         keep_points_, keep_inds = nms_fast(in_points, im_h, im_w, dist_thresh)
+        
         # Remember to flip outputs back to HW format
         keep_points = np.round(np.flip(keep_points_[:2, :], axis=0).T)
         keep_score = keep_points_[-1, :].T
@@ -473,8 +490,7 @@ def super_nms(prob_predictions, dist_thresh, prob_thresh=0.01, top_k=0):
 
         # Re-compose the probability map
         output_map = np.zeros([im_h, im_w])
-        output_map[keep_points[:, 0].astype(np.int),
-                   keep_points[:, 1].astype(np.int)] = keep_score.squeeze()
+        output_map[keep_points[:, 0].astype(np.int), keep_points[:, 1].astype(np.int)] = keep_score.squeeze()
 
         output_lst.append(output_map[None, ...])
 
@@ -507,34 +523,43 @@ def nms_fast(in_corners, H, W, dist_thresh):
       nmsed_corners - 3xN numpy matrix with surviving corners.
       nmsed_inds - N length numpy vector with surviving corner indices.
     """
+    
     grid = np.zeros((H, W)).astype(int)  # Track NMS data.
     inds = np.zeros((H, W)).astype(int)  # Store indices of points.
+    
     # Sort by confidence and round to nearest int.
     inds1 = np.argsort(-in_corners[2, :])
     corners = in_corners[:, inds1]
     rcorners = corners[:2, :].round().astype(int)  # Rounded corners.
+    
     # Check for edge case of 0 or 1 corners.
     if rcorners.shape[1] == 0:
         return np.zeros((3, 0)).astype(int), np.zeros(0).astype(int)
+    
     if rcorners.shape[1] == 1:
         out = np.vstack((rcorners, in_corners[2])).reshape(3, 1)
         return out, np.zeros((1)).astype(int)
+    
     # Initialize the grid.
     for i, rc in enumerate(rcorners.T):
         grid[rcorners[1, i], rcorners[0, i]] = 1
         inds[rcorners[1, i], rcorners[0, i]] = i
+        
     # Pad the border of the grid, so that we can NMS points near the border.
     pad = dist_thresh
     grid = np.pad(grid, ((pad, pad), (pad, pad)), mode='constant')
+    
     # Iterate through points, highest to lowest conf, suppress neighborhood.
     count = 0
     for i, rc in enumerate(rcorners.T):
         # Account for top and left padding.
         pt = (rc[0] + pad, rc[1] + pad)
+        
         if grid[pt[1], pt[0]] == 1:  # If not yet suppressed.
             grid[pt[1] - pad:pt[1] + pad + 1, pt[0] - pad:pt[0] + pad + 1] = 0
             grid[pt[1], pt[0]] = -1
             count += 1
+            
     # Get all surviving -1's and return sorted array of remaining corners.
     keepy, keepx = np.where(grid == -1)
     keepy, keepx = keepy - pad, keepx - pad
