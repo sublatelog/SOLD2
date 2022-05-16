@@ -365,7 +365,7 @@ def train_single_epoch(
         # Only do this when needed
         if (((idx % model_cfg["disp_freq"]) == 0) or ((idx % model_cfg["summary_freq"]) == 0)):
           
-            # 
+            # nmsをかけてtop300を選択
             junc_np = convert_junc_predictions(
                                                 outputs["junctions"], 
                                                 model_cfg["grid_size"],
@@ -653,22 +653,30 @@ def validate(model, model_cfg, loss_func, metric_func, val_loader, writer, epoch
     # Record the training summary
     record_test_summaries(writer, epoch, scalar_summaries)
 
-
-def convert_junc_predictions(predictions, grid_size,
-                             detect_thresh=1/65, topk=300):
+# nmsをかける
+def convert_junc_predictions(predictions, 
+                             grid_size,
+                             detect_thresh=1/65, 
+                             topk=300
+                            ):
     """ Convert torch predictions to numpy arrays for evaluation. """
+    
     # Convert to probability outputs first
     junc_prob = softmax(predictions.detach(), dim=1).cpu()
     junc_pred = junc_prob[:, :-1, :, :]
 
     junc_prob_np = junc_prob.numpy().transpose(0, 2, 3, 1)[:, :, :, :-1]
     junc_prob_np = np.sum(junc_prob_np, axis=-1)
-    junc_pred_np = pixel_shuffle(
-        junc_pred, grid_size).cpu().numpy().transpose(0, 2, 3, 1)
+    
+    # pixel_shuffle():grid_sizeごとのチャンネル分割からgrid_sizeに縦横を分割. (*, C \times r^2, H, W)(∗,C×r2 ,H,W) to (*, C, H \times r, W \times r)(∗,C,H×r,W×r)
+    junc_pred_np = pixel_shuffle(junc_pred, grid_size).cpu().numpy().transpose(0, 2, 3, 1)
+    
+    # super_nms():grid_sizeの幅で信頼度の高いjuncを重ならないように選択する
     junc_pred_np_nms = super_nms(junc_pred_np, grid_size, detect_thresh, topk)
     junc_pred_np = junc_pred_np.squeeze(-1)
 
-    return {"junc_pred": junc_pred_np, "junc_pred_nms": junc_pred_np_nms,
+    return {"junc_pred": junc_pred_np, 
+            "junc_pred_nms": junc_pred_np_nms,
             "junc_prob": junc_prob_np}
 
 
