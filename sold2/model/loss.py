@@ -78,8 +78,7 @@ def get_junction_loss_and_weight(model_cfg, global_w_policy):
     if junc_loss_name == "superpoint":
         print(model_cfg["grid_size"])
         print(model_cfg["keep_border_valid"])
-        junc_loss_func = JunctionDetectionLoss(8, 8, True)
-#         junc_loss_func = JunctionDetectionLoss(model_cfg["grid_size"], model_cfg["keep_border_valid"])
+        junc_loss_func = JunctionDetectionLoss(model_cfg["grid_size"], model_cfg["keep_border_valid"])
 
     else:
         raise ValueError("[Error] Not supported junction loss function.")
