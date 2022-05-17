@@ -636,12 +636,16 @@ def draw_ellipses(img, nb_ellipses=20):
 
 
 def draw_star(img, nb_branches=6, min_len=32, min_label_len=64):
-    """ Draw a star and return the junction points + line map.
+    """ 
+    Draw a star and return the junction points + line map.
     Parameters:
       nb_branches: number of branches of the star
     """
+    
     num_branches = random_state.randint(3, nb_branches)
+    
     min_dim = min(img.shape[0], img.shape[1])
+    
     # Convert length constrain to pixel if given float number
     if isinstance(min_len, float) and min_len <= 1.:
         min_len = int(min_dim * min_len)
@@ -649,16 +653,19 @@ def draw_star(img, nb_branches=6, min_len=32, min_label_len=64):
         min_label_len = int(min_dim * min_label_len)
 
     thickness = random_state.randint(min_dim * 0.01, min_dim * 0.025)
+    
+    # 上下左右のマージン設定
     rad = max(random_state.rand() * min_dim / 2, min_dim / 5)
     x = random_state.randint(rad, img.shape[1] - rad)
     y = random_state.randint(rad, img.shape[0] - rad)
+    
     # Sample num_branches points inside the circle
     slices = np.linspace(0, 2 * math.pi, num_branches + 1)
-    angles = [slices[i] + random_state.rand() * (slices[i+1] - slices[i])
-              for i in range(num_branches)]
+    
+    angles = [slices[i] + random_state.rand() * (slices[i+1] - slices[i]) for i in range(num_branches)]
+    
     points = np.array(
-        [[int(x + max(random_state.rand(), 0.3) * rad * math.cos(a)),
-          int(y + max(random_state.rand(), 0.3) * rad * math.sin(a))]
+        [[int(x + max(random_state.rand(), 0.3) * rad * math.cos(a)), int(y + max(random_state.rand(), 0.3) * rad * math.sin(a))]
          for a in angles])
     points = np.concatenate(([[x, y]], points), axis=0)
 
@@ -674,8 +681,8 @@ def draw_star(img, nb_branches=6, min_len=32, min_label_len=64):
     label_segments = segments[seg_len >= min_label_len, :]
 
     # Get all junctions from label segments
-    junctions_all = np.concatenate(
-        (label_segments[:, :2], label_segments[:, 2:]), axis=0)
+    junctions_all = np.concatenate((label_segments[:, :2], label_segments[:, 2:]), axis=0)
+    
     if junctions_all.shape[0] == 0:
         junc_points = None
         line_map = None
@@ -683,15 +690,20 @@ def draw_star(img, nb_branches=6, min_len=32, min_label_len=64):
     # Get all unique junction points
     else:
         junc_points = np.unique(junctions_all, axis=0)
+        
         # Generate line map from points and segments
         line_map = get_line_map(junc_points, label_segments)
 
     background_color = int(np.mean(img))
     for i in range(1, num_branches + 1):
         col = get_random_color(background_color)
-        cv.line(img, (points[0][0], points[0][1]),
+        cv.line(img, 
+                (points[0][0], points[0][1]), 
                 (points[i][0], points[i][1]),
-                col, thickness)
+                col, 
+                thickness
+               )
+        
     return {
         "points": junc_points,
         "line_map": line_map
