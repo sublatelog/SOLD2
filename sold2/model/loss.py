@@ -259,8 +259,7 @@ class JunctionDetectionLoss(nn.Module):
                                        self.keep_border
                                       )
 
-# get_loss_and_weights > get_heatmap_loss_and_weight > HeatmapLoss ----------- ----------- ----------- ----------- ----------- ----------- ----------- ----------- -----------
-class HeatmapLoss(nn.Module):
+# get_loss_and_weights > get_heatmap_loss_and_weight > HeatmapLoss ----------- ----------- ----------- ----------- ----------- ----------- ----------- 
     """ Heatmap prediction loss. """
     def __init__(self, class_weight):
         super(HeatmapLoss, self).__init__()
