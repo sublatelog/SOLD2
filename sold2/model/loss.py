@@ -100,30 +100,40 @@ def get_heatmap_loss_and_weight(model_cfg, global_w_policy, device):
     elif w_policy == "dynamic":
         w_heatmap = nn.Parameter(
                                 torch.tensor(model_cfg["w_heatmap"], dtype=torch.float32), 
-                                requires_grad=True
+                                requires_grad=True            
                                 )
         
+        
     else:
-        raise ValueError([Error] Unknown weighting policy for junction loss weight.")
+        raise ValueError("[Error] Unknown weighting policy for junction loss weight.")
+                                
+                         
 
     # Get the corresponding heatmap loss based on the config
     heatmap_loss_name = model_cfg.get("heatmap_loss_func", "cross_entropy")
+                             
                          
     if heatmap_loss_name == "cross_entropy":
         # Get the heatmap class weight (always static)
-        heatmap_class_w = model_cfg.get("w_heatmap_class", 1.)
+                         
+        heatmap_class_w = model_cfg.get("w_heatmap_class", 1.)                         
                          
         class_weight = torch.tensor(np.array([1., heatmap_class_w])).to(torch.float).to(device)
+                         
         heatmap_loss_func = HeatmapLoss(class_weight=class_weight)
                          
+                         
     else:
-        raise ValueError("[Error] Not supported heatmap loss function.")
+        raise ValueError("[Error] Not supported heatmap loss function.")                         
 
-    return w_heatmap, heatmap_loss_func
+    return w_heatmap, heatmap_loss_func                         
 
 
+                         
 def get_descriptor_loss_and_weight(model_cfg, global_w_policy):
+    
     """ Get the descriptor loss function and weight. """
+                         
     descriptor_loss_cfg = model_cfg.get("descriptor_loss_cfg", {})
     
     # Get the descriptor loss weight
