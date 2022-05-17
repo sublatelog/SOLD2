@@ -282,6 +282,9 @@ def train_single_epoch(
 
     # The training loop  ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
     for idx, data in enumerate(train_loader):
+      
+        # WireframeDataset
+        # HolicityDataset
         if compute_descriptors:
             junc_map = data["ref_junction_map"].cuda()
             junc_map2 = data["target_junction_map"].cuda()
@@ -328,7 +331,7 @@ def train_single_epoch(
                                                     valid_mask, 
                                                     valid_mask2
                                                   )
-            
+        # synthetic_dataset    
         else:
             junc_map = data["junction_map"].cuda()
             heatmap = data["heatmap"].cuda()
@@ -342,8 +345,10 @@ def train_single_epoch(
             losses = loss_func(
                               outputs["junctions"], 
                               junc_map,
+              
                               outputs["heatmap"], 
                               heatmap,
+              
                               valid_mask
                               )
             
