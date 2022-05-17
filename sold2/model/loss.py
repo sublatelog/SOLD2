@@ -76,7 +76,6 @@ def get_junction_loss_and_weight(model_cfg, global_w_policy):
     junc_loss_name = model_cfg.get("junction_loss_func", "superpoint")
     
     if junc_loss_name == "superpoint":
-#         junc_loss_func = JunctionDetectionLoss(model_cfg["grid_size"], model_cfg["keep_border_valid"])
         junc_loss_func = JunctionDetectionLoss(model_cfg["grid_size"], model_cfg["keep_border_valid"])
     else:
         raise ValueError("[Error] Not supported junction loss function.")
@@ -253,25 +252,37 @@ def heatmap_loss(heatmap_gt,
     return loss
 
 # get_loss_and_weights > get_junction_loss_and_weight > JunctionDetectionLoss -----------  ----------- ----------- ----------- ----------- ----------- -----------
+# class JunctionDetectionLoss(nn.Module):
+#     """ Junction detection loss. """
+                         
+#     def __init__(self, grid_size, keep_border):
+#         super(JunctionDetectionLoss, self).__init__()
+#         self.grid_size = grid_size
+#         self.keep_border = keep_border
+
+#     def forward(self, prediction, target, valid_mask=None):
+#         print("1_2")                 
+#         return junction_detection_loss(target, 
+#                                        prediction, 
+#                                        valid_mask,
+#                                        self.grid_size, 
+#                                        self.keep_border
+#                                       )
+    
 class JunctionDetectionLoss(nn.Module):
     """ Junction detection loss. """
-                         
     def __init__(self, grid_size, keep_border):
         super(JunctionDetectionLoss, self).__init__()
         self.grid_size = grid_size
         self.keep_border = keep_border
 
     def forward(self, prediction, target, valid_mask=None):
-        print("1_2")                 
-        return junction_detection_loss(target, 
-                                       prediction, 
-                                       valid_mask,
-                                       self.grid_size, 
-                                       self.keep_border
-                                      )
-    
+        return junction_detection_loss(target, prediction, valid_mask,
+                                       self.grid_size, self.keep_border)
+ 
 
 # get_loss_and_weights > get_heatmap_loss_and_weight > HeatmapLoss ----------- ----------- ----------- ----------- ----------- ----------- ----------- 
+class HeatmapLoss(nn.Module):
     """ Heatmap prediction loss. """
     def __init__(self, class_weight):
         super(HeatmapLoss, self).__init__()
