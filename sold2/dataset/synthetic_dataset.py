@@ -437,7 +437,7 @@ class SyntheticShapes(Dataset):
                                       data=image,
                                       compression="gzip"
                                      )
-             """
+            """
             image
             (400, 400)
             [[240 240 240 ... 239 239 239]
