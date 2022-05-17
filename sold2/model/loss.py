@@ -79,7 +79,7 @@ def get_junction_loss_and_weight(model_cfg, global_w_policy):
                                                model_cfg["grid_size"],
                                                model_cfg["keep_border_valid"]
                                               )
-        
+                
     else:
         raise ValueError("[Error] Not supported junction loss function.")
 
@@ -90,7 +90,7 @@ def get_heatmap_loss_and_weight(model_cfg, global_w_policy, device):
     """ Get the heatmap loss function and weight. """
     
     heatmap_loss_cfg = model_cfg.get("heatmap_loss_cfg", {})
-
+    
     # Get the heatmap loss weight
     w_policy = heatmap_loss_cfg.get("policy", global_w_policy)
     
@@ -143,6 +143,7 @@ def get_descriptor_loss_and_weight(model_cfg, global_w_policy):
     elif w_policy == "dynamic":
         w_descriptor = nn.Parameter(torch.tensor(model_cfg["w_desc"],
                                     dtype=torch.float32), requires_grad=True)
+        
     else:
         raise ValueError(
     "[Error] Unknown weighting policy for descriptor loss weight.")
@@ -211,6 +212,7 @@ def junction_detection_loss(junction_map,
 
     # Compute the classification loss
     loss_func = nn.CrossEntropyLoss(reduction="none")
+    
                          
                          
     # The loss still need NCHW format
@@ -222,6 +224,7 @@ def junction_detection_loss(junction_map,
     loss_final = loss_ / torch.sum(torch.squeeze(valid_mask.to(torch.float), dim=1))
 
     return loss_final
+
                          
 # get_loss_and_weights > get_heatmap_loss_and_weight > HeatmapLoss > heatmap_loss ----------- ----------- ----------- ----------- ----------- ----------- -----------
 def heatmap_loss(heatmap_gt, 
@@ -268,6 +271,7 @@ class JunctionDetectionLoss(nn.Module):
                                        self.grid_size, 
                                        self.keep_border
                                       )
+    
 
 # get_loss_and_weights > get_heatmap_loss_and_weight > HeatmapLoss ----------- ----------- ----------- ----------- ----------- ----------- ----------- 
     """ Heatmap prediction loss. """
@@ -404,7 +408,7 @@ class TotalLoss(nn.Module):
             total_loss = junc_loss * torch.exp(-self.loss_weights["w_junc"]) + \
                          heatmap_loss * torch.exp(-self.loss_weights["w_heatmap"]) + \
                          reg_loss
-            
+                        
             return {
                 "total_loss": total_loss,
                 "junc_loss": junc_loss,
@@ -484,6 +488,7 @@ class TotalLoss(nn.Module):
                 if isinstance(w_descriptor, nn.Parameter) else w_descriptor
         }
         
+        
         # Compute the regularization loss
         reg_loss = self.loss_funcs["reg_loss"](self.loss_weights)
         total_loss += reg_loss
@@ -491,5 +496,6 @@ class TotalLoss(nn.Module):
             "reg_loss": reg_loss,
             "total_loss": total_loss
         })
+        
 
         return outputs
