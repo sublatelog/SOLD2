@@ -122,7 +122,9 @@ backbone_net > features
 
 * get_descriptor_decoder()
   SuperpointDescriptor()
-  
+    Conv2d(dim, 256) > relu > Conv2d(256, 128) 
+    
+    
 """
 class SOLD2Net(nn.Module):
     """ Full network for SOLD². """
