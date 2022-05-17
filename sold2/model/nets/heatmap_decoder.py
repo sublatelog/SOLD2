@@ -5,6 +5,7 @@ class PixelShuffleDecoder(nn.Module):
     """ Pixel shuffle decoder. """
     def __init__(self, input_feat_dim=128, num_upsample=2, output_channel=2):
         super(PixelShuffleDecoder, self).__init__()
+        
         # Get channel parameters
         self.channel_conf = self.get_channel_conf(num_upsample)
 
@@ -13,11 +14,11 @@ class PixelShuffleDecoder(nn.Module):
         
         # Process the feature
         self.conv_block_lst = []
+        
         # The input block
         self.conv_block_lst.append(
             nn.Sequential(
-                nn.Conv2d(input_feat_dim, self.channel_conf[0],
-                          kernel_size=3, stride=1, padding=1),
+                nn.Conv2d(input_feat_dim, self.channel_conf[0], kernel_size=3, stride=1, padding=1),
                 nn.BatchNorm2d(self.channel_conf[0]),
                 nn.ReLU(inplace=True)
         ))
@@ -26,16 +27,14 @@ class PixelShuffleDecoder(nn.Module):
         for channel in self.channel_conf[1:-1]:
             self.conv_block_lst.append(
                 nn.Sequential(
-                    nn.Conv2d(channel, channel, kernel_size=3,
-                              stride=1, padding=1),
+                    nn.Conv2d(channel, channel, kernel_size=3, stride=1, padding=1),
                     nn.BatchNorm2d(channel),
                     nn.ReLU(inplace=True)
             ))
         
         # Output block
         self.conv_block_lst.append(
-            nn.Conv2d(self.channel_conf[-1], output_channel,
-                      kernel_size=1, stride=1, padding=0)
+            nn.Conv2d(self.channel_conf[-1], output_channel, kernel_size=1, stride=1, padding=0)
         )
         self.conv_block_lst = nn.ModuleList(self.conv_block_lst)
     
@@ -51,7 +50,7 @@ class PixelShuffleDecoder(nn.Module):
         out = input_features
         for block in self.conv_block_lst[:-1]:
             out = block(out)
-            out = self.pixshuffle(out)
+            out = self.pixshuffle(out) # テンソル内の要素を再配置. （*、C \ times r ^ 2、H、W） >（*、C、H \ times r、W \ times r）
         
         # Output layer
         out = self.conv_block_lst[-1](out)
