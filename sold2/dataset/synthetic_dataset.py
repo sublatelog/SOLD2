@@ -472,8 +472,6 @@ class SyntheticShapes(Dataset):
                                       data=heatmap,
                                       compression="gzip"
                                      )
-            print("heatmap")
-            print(heatmap.shape)
             """
             heatmap
             (400, 400)
