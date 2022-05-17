@@ -114,9 +114,11 @@ backbone_net > features
 
 - junction_decoder(features)
   SuperpointDecoder()
+    Conv2d(dim, 256) > relu > Conv2d(256, 65)  
   
 - self.heatmap_decoder(features)
   PixelShuffleDecoder(self.feat_channel, num_upsample=2)
+    c_b_a*x > pixshuffle()
 
 * get_descriptor_decoder()
   SuperpointDescriptor()
