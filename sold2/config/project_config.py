@@ -39,6 +39,6 @@ class Config(object):
     ########################
     ## Experiment Setting ##
     ########################
-    EXP_PATH = os.getenv("EXP_PATH", "./experiments/")  # TODO: path to your experiments folder
+    EXP_PATH = os.getenv("EXP_PATH", "/content/drive/MyDrive/kaggle/ImageMatchingChallenge2022/wireframe/experiments/")  # TODO: path to your experiments folder
     if not os.path.exists(EXP_PATH):
         os.makedirs(EXP_PATH)
