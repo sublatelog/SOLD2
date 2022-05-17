@@ -184,7 +184,7 @@ def junction_detection_loss(junction_map,
     junc_map = space_to_depth(junction_map, grid_size)
     map_shape = junc_map.shape[-2:]
     batch_size = junc_map.shape[0]
-    print("1_3")                     
+                      
     dust_bin_label = torch.ones(
                                 [batch_size, 
                                  1, 
@@ -252,34 +252,23 @@ def heatmap_loss(heatmap_gt,
     return loss
 
 # get_loss_and_weights > get_junction_loss_and_weight > JunctionDetectionLoss -----------  ----------- ----------- ----------- ----------- ----------- -----------
-# class JunctionDetectionLoss(nn.Module):
-#     """ Junction detection loss. """
-                         
-#     def __init__(self, grid_size, keep_border):
-#         super(JunctionDetectionLoss, self).__init__()
-#         self.grid_size = grid_size
-#         self.keep_border = keep_border
-
-#     def forward(self, prediction, target, valid_mask=None):
-#         print("1_2")                 
-#         return junction_detection_loss(target, 
-#                                        prediction, 
-#                                        valid_mask,
-#                                        self.grid_size, 
-#                                        self.keep_border
-#                                       )
-    
 class JunctionDetectionLoss(nn.Module):
     """ Junction detection loss. """
+                         
     def __init__(self, grid_size, keep_border):
         super(JunctionDetectionLoss, self).__init__()
         self.grid_size = grid_size
         self.keep_border = keep_border
 
     def forward(self, prediction, target, valid_mask=None):
-        return junction_detection_loss(target, prediction, valid_mask,
-                                       self.grid_size, self.keep_border)
- 
+              
+        return junction_detection_loss(target, 
+                                       prediction, 
+                                       valid_mask,
+                                       self.grid_size, 
+                                       self.keep_border
+                                      )
+    
 
 # get_loss_and_weights > get_heatmap_loss_and_weight > HeatmapLoss ----------- ----------- ----------- ----------- ----------- ----------- ----------- 
 class HeatmapLoss(nn.Module):
