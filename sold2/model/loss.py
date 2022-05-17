@@ -21,6 +21,7 @@ def get_loss_and_weights(model_cfg, device=torch.device("cuda")):
     
     loss_func = {}
     loss_weight = {}
+    
     # Get junction loss function and weight
     w_junc, junc_loss_func = get_junction_loss_and_weight(model_cfg, w_policy)
     loss_func["junc_loss"] = junc_loss_func.to(device)
@@ -75,10 +76,7 @@ def get_junction_loss_and_weight(model_cfg, global_w_policy):
     junc_loss_name = model_cfg.get("junction_loss_func", "superpoint")
     
     if junc_loss_name == "superpoint":
-        junc_loss_func = JunctionDetectionLoss(
-                                               model_cfg["grid_size"],
-                                               model_cfg["keep_border_valid"]
-                                              )
+        junc_loss_func = JunctionDetectionLoss(model_cfg["grid_size"], model_cfg["keep_border_valid"])
                 
     else:
         raise ValueError("[Error] Not supported junction loss function.")
@@ -466,6 +464,7 @@ class TotalLoss(nn.Module):
         descriptor_loss = self.loss_funcs["descriptor_loss"](
             desc_pred1, desc_pred2, line_points1,
             line_points2, line_indices, epoch)
+        
         # Get descriptor loss weight (dynamic or not)
         if isinstance(self.loss_weights["w_desc"], nn.Parameter):
             w_descriptor = torch.exp(-self.loss_weights["w_desc"])
@@ -476,22 +475,21 @@ class TotalLoss(nn.Module):
         total_loss = (junc_loss * w_junc
                       + heatmap_loss * w_heatmap
                       + descriptor_loss * w_descriptor)
+        
         outputs = {
             "junc_loss": junc_loss,
             "heatmap_loss": heatmap_loss,
-            "w_junc": w_junc.item() \
-                if isinstance(w_junc, nn.Parameter) else w_junc,
-            "w_heatmap": w_heatmap.item() \
-                if isinstance(w_heatmap, nn.Parameter) else w_heatmap,
+            "w_junc": w_junc.item() if isinstance(w_junc, nn.Parameter) else w_junc,
+            "w_heatmap": w_heatmap.item() if isinstance(w_heatmap, nn.Parameter) else w_heatmap,
             "descriptor_loss": descriptor_loss,
-            "w_desc": w_descriptor.item() \
-                if isinstance(w_descriptor, nn.Parameter) else w_descriptor
+            "w_desc": w_descriptor.item() if isinstance(w_descriptor, nn.Parameter) else w_descriptor
         }
         
         
         # Compute the regularization loss
         reg_loss = self.loss_funcs["reg_loss"](self.loss_weights)
         total_loss += reg_loss
+        
         outputs.update({
             "reg_loss": reg_loss,
             "total_loss": total_loss
