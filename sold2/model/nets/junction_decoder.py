@@ -6,14 +6,14 @@ class SuperpointDecoder(nn.Module):
     """ Junction decoder based on the SuperPoint architecture. """
     def __init__(self, input_feat_dim=128, backbone_name="lcnn"):
         super(SuperpointDecoder, self).__init__()
+        
         self.relu = torch.nn.ReLU(inplace=True)
+        
         # Perform strided convolution when using lcnn backbone.
         if backbone_name == "lcnn":
-            self.convPa = torch.nn.Conv2d(input_feat_dim, 256, kernel_size=3,
-                                          stride=2, padding=1)
+            self.convPa = torch.nn.Conv2d(input_feat_dim, 256, kernel_size=3, stride=2, padding=1)
         elif backbone_name == "superpoint":
-            self.convPa = torch.nn.Conv2d(input_feat_dim, 256, kernel_size=3,
-                                          stride=1, padding=1)
+            self.convPa = torch.nn.Conv2d(input_feat_dim, 256, kernel_size=3, stride=1, padding=1)
         else:
             raise ValueError("[Error] Unknown backbone option.")
         
