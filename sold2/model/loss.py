@@ -186,7 +186,7 @@ def junction_detection_loss(junction_map,
     junc_map = space_to_depth(junction_map, grid_size)
     map_shape = junc_map.shape[-2:]
     batch_size = junc_map.shape[0]
-                         
+    print("1_3")                     
     dust_bin_label = torch.ones(
                                 [batch_size, 
                                  1, 
@@ -263,7 +263,7 @@ class JunctionDetectionLoss(nn.Module):
         self.keep_border = keep_border
 
     def forward(self, prediction, target, valid_mask=None):
-                         
+        print("1_2")                 
         return junction_detection_loss(target, 
                                        prediction, 
                                        valid_mask,
