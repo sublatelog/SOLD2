@@ -190,7 +190,7 @@ def export_homograpy_adaptation(args,
             outputs = homography_adaptation(
                                             input_images, 
                                             model,
-                                            model_cfg["grid_size"],
+                                            model_cfg["grid_size"], # grid_size: 8
                                             homography_cfg
                                             )
 
@@ -198,6 +198,18 @@ def export_homograpy_adaptation(args,
             for batch_idx in range(batch_size):
                 # Get the save key
                 save_key = file_keys[batch_idx]
+                
+                """
+                input_images
+                
+                junc_probs_mean                
+                junc_probs_max
+                junc_counts
+                
+                heatmap_probs_mean
+                heatmap_probs_max
+                heatmap_counts                
+                """
                 output_data = {
                     "image": input_images.cpu().numpy().transpose(0, 2, 3, 1)[batch_idx],
                     "junc_prob_mean": outputs["junc_probs_mean"].cpu().numpy().transpose(0, 2, 3, 1)[batch_idx],
@@ -228,6 +240,7 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
         grid_size: Grid size of the junction decoder.
         homography_cfg: Homography adaptation configurations.
     """
+    
     # Get the device of the current model
     device = next(model.parameters()).device
 
@@ -235,10 +248,14 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
     batch_size, _, H, W = input_images.shape
     num_iter = homography_cfg["num_iter"]
     
+    # junc
     junc_probs = torch.zeros([batch_size, num_iter, H, W], device=device)
     junc_counts = torch.zeros([batch_size, 1, H, W], device=device)
+    
+    # heatmap
     heatmap_probs = torch.zeros([batch_size, num_iter, H, W], device=device)
     heatmap_counts = torch.zeros([batch_size, 1, H, W], device=device)
+    
     
     margin = homography_cfg["valid_border_margin"]
 
@@ -246,26 +263,30 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
     homography_cfg_no_artifacts = copy.copy(homography_cfg["homographies"])
     homography_cfg_no_artifacts["allow_artifacts"] = False
 
+    # num_iter: 100
     for idx in range(num_iter):
+        
+        # transformation matrix with shape(B,3,3) ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
         if idx <= num_iter // 5:
-            # Ensure that 20% of the homographies have no artifact
-            H_mat_lst = [sample_homography([H,W], **homography_cfg_no_artifacts)[0][None] for _ in range(batch_size)]
+            # Ensure that 20% of the homographies have no artifact. ["allow_artifacts"] = False            
+            H_mat_lst = [sample_homography([H,W], **homography_cfg_no_artifacts)[0][None] for _ in range(batch_size)] # batch_size: 6
         else:
             H_mat_lst = [sample_homography([H,W], **homography_cfg["homographies"])[0][None] for _ in range(batch_size)]
 
-        H_mats = np.concatenate(H_mat_lst, axis=0)
+        H_mats = np.concatenate(H_mat_lst, axis=0)        
         H_tensor = torch.tensor(H_mats, dtype=torch.float, device=device)
-        H_inv_tensor = torch.inverse(H_tensor)
+        H_inv_tensor = torch.inverse(H_tensor) # 転置
 
-        # Perform the homography warp
+        # input_imageの射影変換 bilinear ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
         images_warped = warp_perspective(
                                          input_images, 
-                                         H_tensor, 
+                                         H_tensor, # transformation matrix
                                          (H, W),
                                          flags="bilinear"
                                         )
         
-        # Warp the mask
+        # junc_maskの射影変換 nearest ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
+        # 画像サイズの全てが有効
         masks_junc_warped = warp_perspective(
                                             torch.ones([batch_size, 1, H, W], device=device),
                                             H_tensor, 
@@ -273,6 +294,8 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                             flags="nearest"
                                             )
         
+        # heatmap_maskの射影変換 nearest ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
+        # 画像サイズの全てが有効
         masks_heatmap_warped = warp_perspective(
                                                 torch.ones([batch_size, 1, H, W], device=device),
                                                 H_tensor, 
@@ -284,19 +307,24 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
         with torch.no_grad():
             outputs = model(images_warped)
         
-        # Unwarp and mask the junction prediction
+        
+        # junc_probの射影変換 ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
+        # junc_probのグリッドを統合. Unwarp and mask the junction prediction
+        # pixel_shuffle:(*, C \times r^2, H, W)(∗,C×r2,H,W) to (*, C, H \times r, W \times r)(∗,C,H×r,W×r)        
         junc_prob_warped = pixel_shuffle(
                                         softmax(outputs["junctions"], dim=1)[:, :-1, :, :], 
-                                        grid_size
+                                        grid_size # grid_size: 8
                                         )
         
+        # junc_probの射影変換 bilinear
         junc_prob = warp_perspective(
                                      junc_prob_warped, 
                                      H_inv_tensor,
                                      (H, W), 
                                      flags="bilinear"
                                     )
-
+        
+        # out_boundary_maskの射影変換 neares ---------- ---------- ---------- ---------- ---------- ---------- ----------
         # Create the out of boundary mask
         out_boundary_mask = warp_perspective(
                                             torch.ones([batch_size, 1, H, W], device=device),
@@ -305,14 +333,19 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                             flags="nearest"
                                             )
         
+        # borderの調節　maskを楕円形に収縮
         out_boundary_mask = adjust_border(
                                           out_boundary_mask,
                                           device, 
                                           margin
                                           )
+        
+        
 
+        # junc_probにout_boundary_maskを適用
         junc_prob = junc_prob * out_boundary_mask
         
+        # masks_juncにout_boundary_maskを適用して射影変換してcountを得る nearest ----------- ----------- ----------- ----------- ----------- -----------
         junc_count = warp_perspective(
                                         masks_junc_warped * out_boundary_mask,
                                         H_inv_tensor, 
@@ -320,16 +353,19 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                         flags="nearest"
                                      )
 
+        
         # Unwarp the mask and heatmap prediction
-        # Always fetch only one channel
+        # チャンネルが2個ある場合はsoftmaxをかけて2個目を選択し、1チャンネルに変換. Always fetch only one channel
         if outputs["heatmap"].shape[1] == 2:
             # Convert to single channel directly from here
             heatmap_prob_warped = softmax(outputs["heatmap"], dim=1)[:, 1:, :, :]
         else:
             heatmap_prob_warped = torch.sigmoid(outputs["heatmap"])
         
+        # heatmap_probにmaskを適用
         heatmap_prob_warped = heatmap_prob_warped * masks_heatmap_warped
         
+        # heatmap_probの射影変換 bilinear ---------- ---------- ---------- ---------- ---------- ---------- ----------
         heatmap_prob = warp_perspective(
                                         heatmap_prob_warped, 
                                         H_inv_tensor,
@@ -337,6 +373,7 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                         flags="bilinear"
                                         )
         
+        #  masks_heatmapの射影変換でcountを得る
         heatmap_count = warp_perspective(
                                          masks_heatmap_warped, 
                                          H_inv_tensor,
@@ -344,36 +381,46 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                          flags="nearest"
                                         )
 
-        # Record the results
+        # indexの位置にprobを入力. Record the results
         junc_probs[:, idx:idx+1, :, :] = junc_prob
         heatmap_probs[:, idx:idx+1, :, :] = heatmap_prob
+        
+        # countを追加
         junc_counts += junc_count
         heatmap_counts += heatmap_count
 
     # Perform the accumulation operation
     if homography_cfg["min_counts"] > 0:
         min_counts = homography_cfg["min_counts"]
+        
+        # 最低回数以下の位置を0に設定
         junc_count_mask = (junc_counts < min_counts)
         heatmap_count_mask = (heatmap_counts < min_counts)
         junc_counts[junc_count_mask] = 0
         heatmap_counts[heatmap_count_mask] = 0
     else:
+        # min_countsの設定がない場合は全て0に設定
         junc_count_mask = np.zeros_like(junc_counts, dtype=bool)
         heatmap_count_mask = np.zeros_like(heatmap_counts, dtype=bool)
     
     # Compute the mean accumulation
+    # 平均の計算　junc_probs
     junc_probs_mean = torch.sum(junc_probs, dim=1, keepdim=True) / junc_counts
+    junc_probs_mean[junc_count_mask] = 0. # 最低回数以下の位置は0に設定
     
-    junc_probs_mean[junc_count_mask] = 0.
-    
+    # 平均の計算　heatmap_probs
     heatmap_probs_mean = (torch.sum(heatmap_probs, dim=1, keepdim=True) / heatmap_counts)
-    heatmap_probs_mean[heatmap_count_mask] = 0.
+    heatmap_probs_mean[heatmap_count_mask] = 0. # 最低回数以下の位置は0に設定
 
     # Compute the max accumulation
+    # maxの計算　junc_probs
     junc_probs_max = torch.max(junc_probs, dim=1, keepdim=True)[0]
-    junc_probs_max[junc_count_mask] = 0.
+    junc_probs_max[junc_count_mask] = 0. # 最低回数以下の位置は0に設定
+    
+    # maxの計算　heatmap_probs
     heatmap_probs_max = torch.max(heatmap_probs, dim=1, keepdim=True)[0]
-    heatmap_probs_max[heatmap_count_mask] = 0.
+    heatmap_probs_max[heatmap_count_mask] = 0. # 最低回数以下の位置は0に設定
+    
 
     return {"junc_probs_mean": junc_probs_mean,
             "junc_probs_max": junc_probs_max,
@@ -382,7 +429,7 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
             "heatmap_probs_max": heatmap_probs_max,
             "heatmap_counts": heatmap_counts}
 
-
+# maskを楕円形に収縮
 def adjust_border(input_masks, device, margin=3):
     """ Adjust the border of the counts and valid_mask. """
     
@@ -390,14 +437,19 @@ def adjust_border(input_masks, device, margin=3):
     dtype = input_masks.dtype
     input_masks = np.squeeze(input_masks.cpu().numpy(), axis=1)
 
+    # cv2.getStructuringElement():構造的要素(カーネル)の作成
+    # cv2.MORPH_ELLIPSE:楕円形カーネル
     erosion_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (margin*2, margin*2))
     batch_size = input_masks.shape[0]
     
     output_mask_lst = []
     # Erode all the masks
     for i in range(batch_size):
+        
+        # cv2.erode():モルフォロジー変換の収縮(Erosion)
         output_mask = cv2.erode(input_masks[i, ...], erosion_kernel)
 
+        # listに追加
         output_mask_lst.append(torch.tensor(output_mask, dtype=dtype, device=device)[None])
     
     # Concat back along the batch dimension.
