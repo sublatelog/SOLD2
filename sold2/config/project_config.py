@@ -9,7 +9,7 @@ class Config(object):
     #####################
     ## Dataset setting ##
     #####################
-    DATASET_ROOT = os.getenv("DATASET_ROOT", "/content/drive/MyDrive/kaggle/ImageMatchingChallenge2022/wireframe")  # TODO: path to your datasets folder
+    DATASET_ROOT = os.getenv("DATASET_ROOT", "/content/drive/MyDrive/kaggle/ImageMatchingChallenge2022/wireframe/")  # TODO: path to your datasets folder
 #     DATASET_ROOT = os.getenv("DATASET_ROOT", "./datasets/")  # TODO: path to your datasets folder
     if not os.path.exists(DATASET_ROOT):
         os.makedirs(DATASET_ROOT)
