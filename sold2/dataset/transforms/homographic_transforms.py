@@ -83,7 +83,8 @@ def sample_homography(
         h_displacement_left = np.random.normal(0., perspective_amplitude_x/2, [1])
         h_displacement_right = np.random.normal(0., perspective_amplitude_x/2, [1])
         
-        pts2 += np.stack([np.concatenate([h_displacement_left, perspective_displacement], 0),
+        pts2 += np.stack([
+                          np.concatenate([h_displacement_left, perspective_displacement], 0),
                           np.concatenate([h_displacement_left, -perspective_displacement], 0),
                           np.concatenate([h_displacement_right, perspective_displacement], 0),
                           np.concatenate([h_displacement_right, -perspective_displacement], 0)
@@ -103,13 +104,7 @@ def sample_homography(
         
         # Chech the valid scale
         else:
-            valid = np.where(
-                             np.all(
-                                    (scaled >= 0.)
-                                     & 
-                                     (scaled < 1.), (1, 2)
-                                   )
-                            )[0]
+            valid = np.where(np.all((scaled >= 0.) & (scaled < 1.), (1, 2)))[0]
         
         # No valid scale found => recursively call
         if valid.shape[0] == 0:
@@ -154,9 +149,7 @@ def sample_homography(
         angles = np.concatenate([[0.], angles], axis=0)
         center = np.mean(pts2, axis=0, keepdims=True)
         rot_mat = np.reshape(np.stack(
-                                      [np.cos(angles), -np.sin(angles),
-                                       np.sin(angles), np.cos(angles)
-                                      ], 
+                                      [np.cos(angles), -np.sin(angles), np.sin(angles), np.cos(angles) ], 
                                       axis=1
                                       ), [-1, 2, 2])
         
@@ -173,13 +166,7 @@ def sample_homography(
             valid = np.array(range(n_angles))
                 
         else:
-            valid = np.where(np.all(
-                                    (rotated >= 0.)
-                                    & 
-                                    (rotated < 1.), 
-                                    axis=(1, 2)
-                                    )
-                             )[0]
+            valid = np.where(np.all((rotated >= 0.) & (rotated < 1.), axis=(1, 2)))[0]
         
         if valid.shape[0] == 0:
             return sample_homography(
@@ -221,12 +208,7 @@ def sample_homography(
     homo_mat = np.concatenate([
                                homo_vec[0:3, 0][None, ...], 
                                homo_vec[3:6, 0][None, ...],
-                               np.concatenate((
-                                               homo_vec[6], 
-                                               homo_vec[7], 
-                                               [1]
-                                              ),
-                                              axis=0)[None, ...]
+                               np.concatenate((homo_vec[6], homo_vec[7], [1]), axis=0)[None, ...]
                              ], 
                              axis=0
                             )
