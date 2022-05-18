@@ -77,16 +77,10 @@ class WireframeDataset(Dataset):
         if config is None:
             self.config = self.get_default_config()
         else:
-            self.config = config
-            
-        print("config")
-        print(self.config)
-            
+            self.config = config            
+           
         # Also get the default config
-        self.default_config = self.get_default_config()
-        
-        print("default_config")
-        print(self.default_config)
+        self.default_config = self.get_default_config()        
 
         # Get cache setting
         self.dataset_name = self.get_dataset_name()
