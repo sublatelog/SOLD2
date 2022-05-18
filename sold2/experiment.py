@@ -84,8 +84,13 @@ def train(args, dataset_cfg, model_cfg, output_path):
     train_net(args, dataset_cfg, model_cfg, output_path)
 
 
-def export(args, dataset_cfg, model_cfg, output_path,
-           export_dataset_mode=None, device=torch.device("cuda")):
+def export(args, 
+           dataset_cfg, 
+           model_cfg, 
+           output_path,
+           export_dataset_mode=None, 
+           device=torch.device("cuda")
+          ):
     """ Export function. """
     
     # Choose between normal predictions export or homography adaptation
@@ -117,6 +122,7 @@ def main(args,
         ):
     
     """ Main function. """
+    
     # Make the output path
     output_path = os.path.join(cfg.EXP_PATH, args.exp_name)
 
@@ -167,14 +173,12 @@ if __name__ == "__main__":
     # Check if GPU is available
     # Get the model
     if torch.cuda.is_available():
-        device = torch.device("cuda")
-        
+        device = torch.device("cuda")        
     else:
         device = torch.device("cpu")
 
     # Check if dataset config and model config is given.
-    if (((args.dataset_config is None) or (args.model_config is None))
-        and (not args.resume) and (args.mode == "train")):
+    if (((args.dataset_config is None) or (args.model_config is None)) and (not args.resume) and (args.mode == "train")):
         raise ValueError("[Error] The dataset config and model config should be given in non-resume mode")
 
     # If resume, check if the resume path has been given
@@ -187,10 +191,7 @@ if __name__ == "__main__":
         if args.pretrained:
             checkpoint_folder = args.resume_path
             
-            checkpoint_path = os.path.join(
-                                           args.pretrained_path,
-                                           args.checkpoint_name
-                                          )
+            checkpoint_path = os.path.join(args.pretrained_path, args.checkpoint_name)
             
             if not os.path.exists(checkpoint_path):
                 raise ValueError("[Error] Missing checkpoint: " + checkpoint_path)
@@ -223,6 +224,7 @@ if __name__ == "__main__":
         if args.dataset_config is None:
             print("[Info] No dataset config provided. Loading from checkpoint folder.")
             dataset_cfg_path = os.path.join(checkpoint_folder, "dataset_cfg.yaml")
+            
             if not os.path.exists(dataset_cfg_path):
                 raise ValueError("[Error] Missing dataset config in checkpoint path.")
                 
