@@ -160,6 +160,9 @@ class WireframeDataset(Dataset):
         # Load from pkl cache
         cache_file_path = os.path.join(self.cache_path, self.cache_name)
         
+        print("cache_file_path")
+        print(cache_file_path)
+        
         with open(cache_file_path, "rb") as f:
             data = pickle.load(f)
         
@@ -171,6 +174,10 @@ class WireframeDataset(Dataset):
             dataset_path = os.path.join(cfg.wireframe_dataroot, "train")
         elif self.mode == "test":
             dataset_path = os.path.join(cfg.wireframe_dataroot, "valid")
+            
+        
+        print("dataset_path")
+        print(dataset_path)
         
         # Get paths to all image files
         image_paths = sorted([os.path.join(dataset_path, _) for _ in os.listdir(dataset_path) if os.path.splitext(_)[-1] == ".png"])
