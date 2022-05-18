@@ -7,7 +7,7 @@ from tqdm import tqdm
 import torch
 from torch.nn.functional import pixel_shuffle, softmax
 from torch.utils.data import DataLoader
-from kornia.geometry import warp_perspective
+from kornia.geometry import warp_perspective #  透視変換:任意の視点から3次元空間を眺めて遠近感を出す変換
 
 from .dataset.dataset_util import get_dataset
 from .model.model_util import get_model
@@ -220,7 +220,8 @@ def export_homograpy_adaptation(args,
 
 
 def homography_adaptation(input_images, model, grid_size, homography_cfg):
-    """ The homography adaptation process.
+    """ 
+    The homography adaptation process.
     Arguments:
         input_images: The images to be evaluated.
         model: The pytorch model in evaluation mode.
@@ -233,10 +234,12 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
     # Define some constants and placeholder
     batch_size, _, H, W = input_images.shape
     num_iter = homography_cfg["num_iter"]
+    
     junc_probs = torch.zeros([batch_size, num_iter, H, W], device=device)
     junc_counts = torch.zeros([batch_size, 1, H, W], device=device)
     heatmap_probs = torch.zeros([batch_size, num_iter, H, W], device=device)
     heatmap_counts = torch.zeros([batch_size, 1, H, W], device=device)
+    
     margin = homography_cfg["valid_border_margin"]
 
     # Keep a config with no artifacts
@@ -246,64 +249,100 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
     for idx in range(num_iter):
         if idx <= num_iter // 5:
             # Ensure that 20% of the homographies have no artifact
-            H_mat_lst = [sample_homography(
-                [H,W], **homography_cfg_no_artifacts)[0][None]
-                         for _ in range(batch_size)]
+            H_mat_lst = [sample_homography([H,W], **homography_cfg_no_artifacts)[0][None] for _ in range(batch_size)]
         else:
-            H_mat_lst = [sample_homography(
-                [H,W], **homography_cfg["homographies"])[0][None]
-                         for _ in range(batch_size)]
+            H_mat_lst = [sample_homography([H,W], **homography_cfg["homographies"])[0][None] for _ in range(batch_size)]
 
         H_mats = np.concatenate(H_mat_lst, axis=0)
         H_tensor = torch.tensor(H_mats, dtype=torch.float, device=device)
         H_inv_tensor = torch.inverse(H_tensor)
 
         # Perform the homography warp
-        images_warped = warp_perspective(input_images, H_tensor, (H, W),
-                                         flags="bilinear")
+        images_warped = warp_perspective(
+                                         input_images, 
+                                         H_tensor, 
+                                         (H, W),
+                                         flags="bilinear"
+                                        )
         
         # Warp the mask
         masks_junc_warped = warp_perspective(
-            torch.ones([batch_size, 1, H, W], device=device),
-            H_tensor, (H, W), flags="nearest")
+                                            torch.ones([batch_size, 1, H, W], device=device),
+                                            H_tensor, 
+                                            (H, W), 
+                                            flags="nearest"
+                                            )
+        
         masks_heatmap_warped = warp_perspective(
-            torch.ones([batch_size, 1, H, W], device=device),
-            H_tensor, (H, W), flags="nearest")
+                                                torch.ones([batch_size, 1, H, W], device=device),
+                                                H_tensor, 
+                                                (H, W), 
+                                                flags="nearest"
+                                                )
 
         # Run the network forward pass
         with torch.no_grad():
             outputs = model(images_warped)
         
         # Unwarp and mask the junction prediction
-        junc_prob_warped = pixel_shuffle(softmax(
-            outputs["junctions"], dim=1)[:, :-1, :, :], grid_size)
-        junc_prob = warp_perspective(junc_prob_warped, H_inv_tensor,
-                                     (H, W), flags="bilinear")
+        junc_prob_warped = pixel_shuffle(
+                                        softmax(outputs["junctions"], dim=1)[:, :-1, :, :], 
+                                        grid_size
+                                        )
+        
+        junc_prob = warp_perspective(
+                                     junc_prob_warped, 
+                                     H_inv_tensor,
+                                     (H, W), 
+                                     flags="bilinear"
+                                    )
 
         # Create the out of boundary mask
         out_boundary_mask = warp_perspective(
-            torch.ones([batch_size, 1, H, W], device=device),
-            H_inv_tensor, (H, W), flags="nearest")
-        out_boundary_mask = adjust_border(out_boundary_mask, device, margin)
+                                            torch.ones([batch_size, 1, H, W], device=device),
+                                            H_inv_tensor, 
+                                            (H, W), 
+                                            flags="nearest"
+                                            )
+        
+        out_boundary_mask = adjust_border(
+                                          out_boundary_mask,
+                                          device, 
+                                          margin
+                                          )
 
         junc_prob = junc_prob * out_boundary_mask
-        junc_count = warp_perspective(masks_junc_warped * out_boundary_mask,
-                                      H_inv_tensor, (H, W), flags="nearest")
+        
+        junc_count = warp_perspective(
+                                        masks_junc_warped * out_boundary_mask,
+                                        H_inv_tensor, 
+                                        (H, W), 
+                                        flags="nearest"
+                                     )
 
         # Unwarp the mask and heatmap prediction
         # Always fetch only one channel
         if outputs["heatmap"].shape[1] == 2:
             # Convert to single channel directly from here
-            heatmap_prob_warped = softmax(outputs["heatmap"],
-                                          dim=1)[:, 1:, :, :]
+            heatmap_prob_warped = softmax(outputs["heatmap"], dim=1)[:, 1:, :, :]
         else:
             heatmap_prob_warped = torch.sigmoid(outputs["heatmap"])
         
         heatmap_prob_warped = heatmap_prob_warped * masks_heatmap_warped
-        heatmap_prob = warp_perspective(heatmap_prob_warped, H_inv_tensor,
-                                        (H, W), flags="bilinear")
-        heatmap_count = warp_perspective(masks_heatmap_warped, H_inv_tensor,
-                                         (H, W), flags="nearest")
+        
+        heatmap_prob = warp_perspective(
+                                        heatmap_prob_warped, 
+                                        H_inv_tensor,
+                                        (H, W), 
+                                        flags="bilinear"
+                                        )
+        
+        heatmap_count = warp_perspective(
+                                         masks_heatmap_warped, 
+                                         H_inv_tensor,
+                                         (H, W), 
+                                         flags="nearest"
+                                        )
 
         # Record the results
         junc_probs[:, idx:idx+1, :, :] = junc_prob
@@ -324,9 +363,10 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
     
     # Compute the mean accumulation
     junc_probs_mean = torch.sum(junc_probs, dim=1, keepdim=True) / junc_counts
+    
     junc_probs_mean[junc_count_mask] = 0.
-    heatmap_probs_mean = (torch.sum(heatmap_probs, dim=1, keepdim=True)
-                          / heatmap_counts)
+    
+    heatmap_probs_mean = (torch.sum(heatmap_probs, dim=1, keepdim=True) / heatmap_counts)
     heatmap_probs_mean[heatmap_count_mask] = 0.
 
     # Compute the max accumulation
@@ -345,12 +385,12 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
 
 def adjust_border(input_masks, device, margin=3):
     """ Adjust the border of the counts and valid_mask. """
+    
     # Convert the mask to numpy array
     dtype = input_masks.dtype
     input_masks = np.squeeze(input_masks.cpu().numpy(), axis=1)
 
-    erosion_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
-                                               (margin*2, margin*2))
+    erosion_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (margin*2, margin*2))
     batch_size = input_masks.shape[0]
     
     output_mask_lst = []
@@ -358,8 +398,7 @@ def adjust_border(input_masks, device, margin=3):
     for i in range(batch_size):
         output_mask = cv2.erode(input_masks[i, ...], erosion_kernel)
 
-        output_mask_lst.append(
-            torch.tensor(output_mask, dtype=dtype, device=device)[None])
+        output_mask_lst.append(torch.tensor(output_mask, dtype=dtype, device=device)[None])
     
     # Concat back along the batch dimension.
     output_masks = torch.cat(output_mask_lst, dim=0)
