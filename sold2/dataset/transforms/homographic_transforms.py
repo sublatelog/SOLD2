@@ -50,6 +50,17 @@ def sample_homography(
         max_angle: Maximum angle used in rotations.
         allow_artifacts: A boolean that enables artifacts when applying the homography.
         translation_overflow: Amount of border artifacts caused by translation.
+        
+        homographies:
+            translation: true
+            rotation: true
+            scaling: true
+            perspective: true
+            scaling_amplitude: 0.2
+            perspective_amplitude_x: 0.2
+            perspective_amplitude_y: 0.2
+            allow_artifacts: true
+            patch_ratio: 0.85
 
     Returns:
         homo_mat: A numpy array of shape `[1, 3, 3]` corresponding to the homography transform.
@@ -64,27 +75,28 @@ def sample_homography(
     pts1 = np.array([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])
         
     # Corners of the input patch
-    margin = (1 - patch_ratio) / 2
+    margin = (1 - patch_ratio) / 2 # (1 - 0.85) / 2 = 0.075
         
     pts2 = margin + np.array([[0, 0],
-                              [0, patch_ratio],
-                              [patch_ratio, patch_ratio], 
-                              [patch_ratio, 0]
+                              [0, patch_ratio], # [0, 0.85]
+                              [patch_ratio, patch_ratio],  # [0.85, 0.85]
+                              [patch_ratio, 0]  # [0.85, 0]
                              ])
 
     # Random perspective and affine perturbations
     if perspective:
         if not allow_artifacts:
-            perspective_amplitude_x = min(perspective_amplitude_x, margin)
-            perspective_amplitude_y = min(perspective_amplitude_y, margin)
+            perspective_amplitude_x = min(perspective_amplitude_x, margin) # min(0.2, 0.075) = 0.075
+            perspective_amplitude_y = min(perspective_amplitude_y, margin) # min(0.2, 0.075) = 0.075
 
-        # normal distribution with mean=0, std=perspective_amplitude_y/2
+        # np.random.normal():正規分布に従う乱数を返す。
+        # normal distribution with mean=0, std=0.75/2
         perspective_displacement = np.random.normal(0., perspective_amplitude_y/2, [1])
         h_displacement_left = np.random.normal(0., perspective_amplitude_x/2, [1])
         h_displacement_right = np.random.normal(0., perspective_amplitude_x/2, [1])
         
         pts2 += np.stack([
-                          np.concatenate([h_displacement_left, perspective_displacement], 0),
+                          np.concatenate([h_displacement_left, perspective_displacement], 0), # 行軸方向に連結
                           np.concatenate([h_displacement_left, -perspective_displacement], 0),
                           np.concatenate([h_displacement_right, perspective_displacement], 0),
                           np.concatenate([h_displacement_right, -perspective_displacement], 0)
