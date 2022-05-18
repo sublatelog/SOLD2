@@ -150,6 +150,10 @@ def export_homograpy_adaptation(args,
     print("\t Initializing dataset and dataloader")
     batch_size = args.export_batch_size
 
+    print("dataset_cfg")
+    print(dataset_cfg)
+    
+    
     export_dataset, collate_fn = get_dataset(export_dataset_mode, dataset_cfg)
     
     export_loader = DataLoader(export_dataset, 
