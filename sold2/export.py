@@ -286,7 +286,8 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                          input_images, 
                                          H_tensor, # transformation matrix
                                          (H, W),
-                                         flags="bilinear"
+#                                          flags="bilinear"
+                                         mode="bilinear"
                                         )
         
         # junc_maskの射影変換 nearest ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
@@ -295,7 +296,8 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                             torch.ones([batch_size, 1, H, W], device=device),
                                             H_tensor, 
                                             (H, W), 
-                                            flags="nearest"
+#                                             flags="nearest"
+                                            mode="nearest"
                                             )
         
         # heatmap_maskの射影変換 nearest ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
@@ -304,7 +306,8 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                                 torch.ones([batch_size, 1, H, W], device=device),
                                                 H_tensor, 
                                                 (H, W), 
-                                                flags="nearest"
+#                                                 flags="nearest"
+                                                mode="nearest"
                                                 )
 
         # Run the network forward pass
@@ -325,7 +328,8 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                      junc_prob_warped, 
                                      H_inv_tensor,
                                      (H, W), 
-                                     flags="bilinear"
+#                                      flags="bilinear"
+                                     mode="bilinear"
                                     )
         
         # out_boundary_maskの射影変換 neares ---------- ---------- ---------- ---------- ---------- ---------- ----------
@@ -334,7 +338,8 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                             torch.ones([batch_size, 1, H, W], device=device),
                                             H_inv_tensor, 
                                             (H, W), 
-                                            flags="nearest"
+#                                             flags="nearest"
+                                            mode="nearest"
                                             )
         
         # borderの調節　maskを楕円形に収縮
@@ -354,7 +359,8 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                         masks_junc_warped * out_boundary_mask,
                                         H_inv_tensor, 
                                         (H, W), 
-                                        flags="nearest"
+#                                         flags="nearest"
+                                        mode="nearest"
                                      )
 
         
@@ -374,7 +380,8 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                         heatmap_prob_warped, 
                                         H_inv_tensor,
                                         (H, W), 
-                                        flags="bilinear"
+#                                         flags="bilinear"
+                                        mode="bilinear"
                                         )
         
         #  masks_heatmapの射影変換でcountを得る
@@ -382,7 +389,8 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
                                          masks_heatmap_warped, 
                                          H_inv_tensor,
                                          (H, W), 
-                                         flags="nearest"
+#                                          flags="nearest"
+                                         mode="nearest"
                                         )
 
         # indexの位置にprobを入力. Record the results
