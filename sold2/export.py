@@ -273,6 +273,7 @@ def homography_adaptation(input_images, model, grid_size, homography_cfg):
         # transformation matrix with shape(B,3,3) ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
         if idx <= num_iter // 5:
             # Ensure that 20% of the homographies have no artifact. ["allow_artifacts"] = False            
+            # [0][None]:0個目にnewaxis新しい次元を追加
             H_mat_lst = [sample_homography([H,W], **homography_cfg_no_artifacts)[0][None] for _ in range(batch_size)] # batch_size: 6
         else:
             H_mat_lst = [sample_homography([H,W], **homography_cfg["homographies"])[0][None] for _ in range(batch_size)]
