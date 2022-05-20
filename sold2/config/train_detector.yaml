@@ -54,6 +54,6 @@ train:
 test:
   batch_size: 6
   num_workers: 8
-disp_freq: 1500
+disp_freq: 3000
 summary_freq: 200
 max_ckpt: 150
