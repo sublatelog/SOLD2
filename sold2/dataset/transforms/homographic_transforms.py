@@ -75,7 +75,7 @@ def sample_homography(
     pts1 = np.array([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])
         
     # Corners of the input patch
-    margin = (1 - patch_ratio) / 2 # (1 - 0.85) / 2 = 0.075
+    margin = (1 - patch_ratio) / 2    # (1 - 0.85) / 2 = 0.075
         
     pts2 = margin + np.array([[0, 0],
                               [0, patch_ratio], # [0, 0.85]
@@ -83,7 +83,7 @@ def sample_homography(
                               [patch_ratio, 0]  # [0.85, 0]
                              ])
 
-    # Random perspective and affine perturbations
+    # Random perspective and affine perturbations ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
     if perspective:
         if not allow_artifacts:
             perspective_amplitude_x = min(perspective_amplitude_x, margin) # min(0.2, 0.075) = 0.075
@@ -102,7 +102,7 @@ def sample_homography(
                           np.concatenate([h_displacement_right, -perspective_displacement], 0)
                          ])
 
-    # Random scaling: sample several scales, check collision with borders,
+    # Random scaling: sample several scales, check collision with borders, ---------- ---------- ---------- ---------- ---------- ---------- ----------
     # randomly pick a valid one
         
     if scaling:
@@ -112,8 +112,7 @@ def sample_homography(
         
         # all scales are valid except scale=1
         if allow_artifacts:
-            valid = np.array(range(n_scales))
-        
+            valid = np.array(range(n_scales))        
         # Chech the valid scale
         else:
             valid = np.where(np.all((scaled >= 0.) & (scaled < 1.), (1, 2)))[0]
@@ -143,7 +142,7 @@ def sample_homography(
         # Additionally save and return the selected scale.
         selected_scale = scales[idx]
 
-    # Random translation
+    # Random translation ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
     if translation:
         t_min, t_max = np.min(pts2, axis=0), np.min(1 - pts2, axis=0)
         if allow_artifacts:
@@ -201,7 +200,7 @@ def sample_homography(
         idx = valid[np.random.uniform(0., valid.shape[0], ()).astype(np.int32)]
         pts2 = rotated[idx]
 
-    # Rescale to actual size
+    # Rescale to actual size ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
     shape = shape[::-1].astype(np.float32)  # different convention [y, x]
     pts1 *= shape[None, ...]
     pts2 *= shape[None, ...]
@@ -210,8 +209,8 @@ def sample_homography(
 
     def ay(p, q): return [0, 0, 0, p[0], p[1], 1, -p[0] * q[1], -p[1] * q[1]]
 
-    a_mat = np.stack([f(pts1[i], pts2[i]) for i in range(4)
-                      for f in (ax, ay)], axis=0)
+    a_mat = np.stack([f(pts1[i], pts2[i]) for i in range(4) for f in (ax, ay)], axis=0)
+    
     p_mat = np.transpose(np.stack([[pts2[i][j] for i in range(4) for j in range(2)]], axis=0))
         
     homo_vec, _, _, _ = np.linalg.lstsq(a_mat, p_mat, rcond=None)
@@ -230,6 +229,7 @@ def sample_homography(
 
 def convert_to_line_segments(junctions, line_map):
     """ Convert junctions and line map to line segments. """
+    
     # Copy the line map
     line_map_tmp = copy.copy(line_map)
 
@@ -282,60 +282,61 @@ def compute_valid_mask(image_size, homography,
 
 def warp_line_segment(line_segments, homography, image_size):
     """ Warp the line segments using a homography. """
+    
     # Separate the line segements into 2N points to apply matrix operation
     num_segments = line_segments.shape[0]
 
-    junctions = np.concatenate(
-        (line_segments[:, :2], # The first junction of each segment.
-        line_segments[:, 2:]), # The second junction of each segment.
-        axis=0)
+    junctions = np.concatenate((line_segments[:, :2], line_segments[:, 2:]), axis=0) # The first junction of each segment. The second junction of each segment.
+                              
     # Convert to homogeneous coordinates
     # Flip the junctions before converting to homogeneous (xy format)
     junctions = np.flip(junctions, axis=1)
-    junctions = np.concatenate((junctions, np.ones([2*num_segments, 1])),
-                               axis=1)
+    junctions = np.concatenate((junctions, np.ones([2*num_segments, 1])), axis=1)
     warped_junctions = np.matmul(homography, junctions.T).T
 
     # Convert back to segments
     warped_junctions = warped_junctions[:, :2] / warped_junctions[:, 2:]
+    
     # (Convert back to hw format)
     warped_junctions = np.flip(warped_junctions, axis=1)
-    warped_segments = np.concatenate(
-        (warped_junctions[:num_segments, :],
-         warped_junctions[num_segments:, :]),
-        axis=1
-    )
+    
+    warped_segments = np.concatenate((warped_junctions[:num_segments, :], warped_junctions[num_segments:, :]), axis=1)
 
     # Check the intersections with the boundary
     warped_segments_new = np.zeros([0, 4])
     image_poly = shapely.geometry.Polygon(
-        [[0, 0], [image_size[1]-1, 0], [image_size[1]-1, image_size[0]-1],
-        [0, image_size[0]-1]])
+                                          [
+                                           [0, 0], 
+                                           [image_size[1]-1, 0], 
+                                           [image_size[1]-1, image_size[0]-1],
+                                           [0, image_size[0]-1]
+                                          ]
+                                         )
+    
     for idx in range(warped_segments.shape[0]):
         # Get the line segment
         seg_raw = warped_segments[idx, :]   # in HW format.
+        
         # Convert to shapely line (flip to xy format)
-        seg = shapely.geometry.LineString([np.flip(seg_raw[:2]), 
-                                           np.flip(seg_raw[2:])])
+        seg = shapely.geometry.LineString([np.flip(seg_raw[:2]), np.flip(seg_raw[2:])])
 
         # The line segment is just inside the image.
         if seg.intersection(image_poly) == seg:
-            warped_segments_new = np.concatenate((warped_segments_new,
-                                                  seg_raw[None, ...]), axis=0)
+            warped_segments_new = np.concatenate((warped_segments_new, seg_raw[None, ...]), axis=0)
         
         # Intersect with the image.
         elif seg.intersects(image_poly):
             # Check intersection
             try:
-                p = np.array(
-                    seg.intersection(image_poly).coords).reshape([-1, 4])
+                p = np.array(seg.intersection(image_poly).coords).reshape([-1, 4])
+                
             # If intersect at exact one point, just continue.
             except:
                 continue
-            segment = np.concatenate([np.flip(p[0, :2]), np.flip(p[0, 2:],
-                                     axis=0)])[None, ...]
-            warped_segments_new = np.concatenate(
-                (warped_segments_new, segment), axis=0)
+                
+            segment = np.concatenate([np.flip(p[0, :2]), np.flip(p[0, 2:], axis=0)])[None, ...]
+            
+            warped_segments_new = np.concatenate((warped_segments_new, segment), axis=0)
 
         else:
             continue
@@ -346,29 +347,48 @@ def warp_line_segment(line_segments, homography, image_size):
 
 class homography_transform(object):
     """ # Homography transformations. """
-    def __init__(self, image_size, homograpy_config,
-                 border_margin=0, min_label_len=20):
+    def __init__(self, 
+                 image_size, 
+                 homograpy_config,
+                 border_margin=0, 
+                 min_label_len=20
+                ):
         self.homo_config = homograpy_config
         self.image_size = image_size
         self.target_size = (self.image_size[1], self.image_size[0])
         self.border_margin = border_margin
+        
         if (min_label_len < 1) and isinstance(min_label_len, float):
             raise ValueError("[Error] min_label_len should be in pixels.")
+            
         self.min_label_len = min_label_len
 
-    def __call__(self, input_image, junctions, line_map,
-                 valid_mask=None, homo=None, scale=None):
+    def __call__(self, 
+                 input_image, 
+                 junctions, 
+                 line_map,
+                 valid_mask=None, 
+                 homo=None, scale=None
+                ):
+      
         # Sample one random homography or use the given one
         if homo is None or scale is None:
-            homo, scale = sample_homography(self.image_size,
-                                            **self.homo_config)
+            homo, scale = sample_homography(self.image_size, **self.homo_config)
 
         # Warp the image
         warped_image = cv2.warpPerspective(
-            input_image, homo, self.target_size, flags=cv2.INTER_LINEAR)
+                                          input_image, 
+                                          homo, 
+                                          self.target_size,
+                                          flags=cv2.INTER_LINEAR
+                                          )
         
-        valid_mask = compute_valid_mask(self.image_size, homo,
-                                        self.border_margin, valid_mask)
+        valid_mask = compute_valid_mask(
+                                        self.image_size, 
+                                        homo,
+                                        self.border_margin, 
+                                        valid_mask
+                                       )
 
         # Convert junctions and line_map back to line segments
         line_segments = convert_to_line_segments(junctions, line_map)
@@ -389,11 +409,14 @@ class homography_transform(object):
             junctions_new = np.unique(junctions_new, axis=0)
 
             # Generate line map from points and segments
-            line_map = get_line_map(junctions_new,
-                                    warped_segments).astype(np.int)
+            line_map = get_line_map(junctions_new, warped_segments).astype(np.int)
+            
             # Compute the heatmap
-            warped_heatmap = get_line_heatmap(np.flip(junctions_new, axis=1),
-                                              line_map, self.image_size)
+            warped_heatmap = get_line_heatmap(
+                                              np.flip(junctions_new, axis=1),
+                                              line_map, 
+                                              self.image_size
+                                            )
 
         return {
             "junctions": junctions_new,
