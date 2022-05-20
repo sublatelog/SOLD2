@@ -248,7 +248,7 @@ class LineSegmentDetectionModule(object):
         
         # Perform junction refinement
         if self.use_junction_refinement and len(detected_junc_indexes) > 0:
-            junctions, line_map_pred = self.refine_junction_perturb(
+            junctions, line_map_pred = self.refine_junction_perturb( # ****************************************************************
                                                                     junctions, 
                                                                     line_map_pred, 
                                                                     heatmap, 
@@ -259,29 +259,46 @@ class LineSegmentDetectionModule(object):
 
         return line_map_pred, junctions, heatmap
     
+    # 閾値以上、top10%で割って正規化
     def refine_heatmap(self, heatmap, ratio=0.2, valid_thresh=1e-2):
         """ Global heatmap refinement method. """
+        
         # Grab the top 10% values
         heatmap_values = heatmap[heatmap > valid_thresh]
         sorted_values = torch.sort(heatmap_values, descending=True)[0]
+        
+        # 全体に対する指定割合の個数
         top10_len = math.ceil(sorted_values.shape[0] * ratio)
+        
         max20 = torch.mean(sorted_values[:top10_len])
+        
+        # top10%の平均で割って正規化
         heatmap = torch.clamp(heatmap / max20, min=0., max=1.)
         return heatmap
     
-    def refine_heatmap_local(self, heatmap, num_blocks=5, overlap_ratio=0.5,
-                             ratio=0.2, valid_thresh=2e-3):
+    
+    
+    # ブロックに分割して閾値以上、top10%で割って正規化
+    def refine_heatmap_local(self, 
+                             heatmap, 
+                             num_blocks=5, 
+                             overlap_ratio=0.5,
+                             ratio=0.2, 
+                             valid_thresh=2e-3
+                            ):
+        
         """ Local heatmap refinement method. """
+        
         # Get the shape of the heatmap
         H, W = heatmap.shape
         increase_ratio = 1 - overlap_ratio
         h_block = round(H / (1 + (num_blocks - 1) * increase_ratio))
         w_block = round(W / (1 + (num_blocks - 1) * increase_ratio))
 
-        count_map = torch.zeros(heatmap.shape, dtype=torch.int,
-                                device=heatmap.device)
-        heatmap_output = torch.zeros(heatmap.shape, dtype=torch.float,
-                                     device=heatmap.device)
+        count_map = torch.zeros(heatmap.shape, dtype=torch.int, device=heatmap.device)
+        
+        heatmap_output = torch.zeros(heatmap.shape, dtype=torch.float, device=heatmap.device)
+        
         # Iterate through each block
         for h_idx in range(num_blocks):
             for w_idx in range(num_blocks):
@@ -294,13 +311,16 @@ class LineSegmentDetectionModule(object):
                 subheatmap = heatmap[h_start:h_end, w_start:w_end]
                 if subheatmap.max() > valid_thresh:
                     subheatmap = self.refine_heatmap(
-                        subheatmap, ratio, valid_thresh=valid_thresh)
+                                                    subheatmap, 
+                                                    ratio, 
+                                                    valid_thresh=valid_thresh
+                                                    )
                 
                 # Aggregate it to the final heatmap
                 heatmap_output[h_start:h_end, w_start:w_end] += subheatmap
                 count_map[h_start:h_end, w_start:w_end] += 1
-        heatmap_output = torch.clamp(heatmap_output / count_map,
-                                     max=1., min=0.)
+                
+        heatmap_output = torch.clamp(heatmap_output / count_map,　max=1., min=0.)
 
         return heatmap_output
 
