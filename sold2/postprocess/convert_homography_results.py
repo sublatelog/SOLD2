@@ -2,7 +2,7 @@
 Convert the aggregation results from the homography adaptation to GT labels.
 """
 import sys
-sys.path.append("../")
+sys.path.append("/content/SOLD2/sold2")
 import os
 import yaml
 import argparse
