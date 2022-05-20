@@ -27,6 +27,7 @@ def convert_raw_exported_predictions(
   
     """ 
     Convert the exported junctions and heatmaps predictions to a standard format.
+    
     Arguments:
         input_data: the raw data (dict) decoded from the hdf5 dataset
         
@@ -84,9 +85,9 @@ def convert_raw_exported_predictions(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("input_dataset", type=str, help="Name of the exported dataset.")
-    parser.add_argument("output_dataset", type=str, help="Name of the output dataset.")
-    parser.add_argument("config", type=str, help="Path to the model config.")
+    parser.add_argument("input_dataset", type=str, help="Name of the exported dataset.")# /content/drive/MyDrive/~/wireframe/export_datasets/wireframe_train.h5
+    parser.add_argument("output_dataset", type=str, help="Name of the output dataset.") # wireframe_train_gt.h5
+    parser.add_argument("config", type=str, help="Path to the model config.")           # /content/SOLD2/sold2/config/export_line_features.yaml  
     args = parser.parse_args()    
     
     # Define the path to the input exported dataset
@@ -109,9 +110,9 @@ if __name__ == "__main__":
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
         
-    model_cfg = config["model_cfg"]
+    model_cfg = config["model_cfg"] # export_line_features.yaml > model_cf
     
-    line_detector_cfg = config["line_detector_cfg"]
+    line_detector_cfg = config["line_detector_cfg"] # export_line_features.yaml > line_detector_cfg
     
     # Initialize the line detection module
     line_detector = LineSegmentDetectionModule(**line_detector_cfg)
