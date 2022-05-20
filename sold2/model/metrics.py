@@ -6,7 +6,12 @@ import torch.nn.functional as F
 import numpy as np
 from torchvision.ops.boxes import batched_nms
 
-from ..misc.geometry_utils import keypoints_to_grid
+import sys
+sys.path.append("../")
+sys.path.append("/content/SOLD2/sold2")
+
+# from ..misc.geometry_utils import keypoints_to_grid
+from misc.geometry_utils import keypoints_to_grid
 
 
 class Metrics(object):
