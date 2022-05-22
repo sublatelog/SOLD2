@@ -74,12 +74,14 @@ class WireframeDataset(Dataset):
             
         self.mode = mode
         
-        self.max_file_len = self.config.get("max_file_len", 1000)
 
         if config is None:
             self.config = self.get_default_config()
         else:
             self.config = config            
+            
+        # max file list length
+        self.max_file_len = self.config.get("max_file_len", 1000)
            
         # Also get the default config
         self.default_config = self.get_default_config()        
