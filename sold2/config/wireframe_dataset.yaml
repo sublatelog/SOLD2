@@ -21,7 +21,7 @@ min_dist_pts: 10
 jittering: 0
 
 # max file list length
-max_file_len: 1000
+max_file_len: 10000
 
 ### Data preprocessing configuration
 preprocessing:
