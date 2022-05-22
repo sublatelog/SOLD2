@@ -73,6 +73,8 @@ class WireframeDataset(Dataset):
             raise ValueError("[Error] Unknown mode for Wireframe dataset. Only 'train' and 'test'.")
             
         self.mode = mode
+        
+        self.max_file_len = self.config.get("max_file_len", 1000)
 
         if config is None:
             self.config = self.get_default_config()
@@ -174,6 +176,7 @@ class WireframeDataset(Dataset):
         
         # Get paths to all image files
         image_paths = sorted([os.path.join(dataset_path, _) for _ in os.listdir(dataset_path) if os.path.splitext(_)[-1] == ".png"])
+        image_paths = image_paths[:self.max_file_len]
         
         # Get the shared prefix
         prefix_paths = [_.split(".png")[0] for _ in image_paths]
