@@ -378,9 +378,17 @@ class LineSegmentDetectionModule(object):
             
         return candidate_map
     
-    def refine_junction_perturb(self, junctions, line_map_pred,
-                                heatmap, H, W, device):
+    def refine_junction_perturb(self, 
+                                junctions, 
+                                line_map_pred,
+                                heatmap, 
+                                H, 
+                                W, 
+                                device
+                               ):
+        
         """ Refine the line endpoints in a similar way as in LSD. """
+        
         # Get the config
         junction_refine_cfg = self.junction_refine_cfg
 
@@ -388,16 +396,31 @@ class LineSegmentDetectionModule(object):
         num_perturbs = junction_refine_cfg["num_perturbs"]
         perturb_interval = junction_refine_cfg["perturb_interval"]
         side_perturbs = (num_perturbs - 1) // 2
+        
         # Fetch the 2D perturb mat
         perturb_vec = torch.arange(
-            start=-perturb_interval*side_perturbs,
-            end=perturb_interval*(side_perturbs+1),
-            step=perturb_interval, device=device)
+                                    start=-perturb_interval*side_perturbs,
+                                    end=perturb_interval*(side_perturbs+1),
+                                    step=perturb_interval, 
+                                    device=device
+                                  )
+        
         w1_grid, h1_grid, w2_grid, h2_grid = torch.meshgrid(
-            perturb_vec, perturb_vec, perturb_vec, perturb_vec)
+                                                            perturb_vec, 
+                                                            perturb_vec, 
+                                                            perturb_vec, 
+                                                            perturb_vec
+                                                            )
+        
         perturb_tensor = torch.cat([
-            w1_grid[..., None], h1_grid[..., None], 
-            w2_grid[..., None], h2_grid[..., None]], dim=-1)
+                                        w1_grid[..., None], 
+                                        h1_grid[..., None], 
+                                        w2_grid[..., None], 
+                                        h2_grid[..., None]
+                                   ], 
+                                   dim=-1
+                                   )
+        
         perturb_tensor_flat = perturb_tensor.view(-1, 2, 2)
 
         # Fetch the junctions and line_map
@@ -411,40 +434,41 @@ class LineSegmentDetectionModule(object):
         start_points = junctions[start_point_idxs, :]
         end_points = junctions[end_point_idxs, :]
 
-        line_segments = torch.cat([start_points.unsqueeze(dim=1),
-                                   end_points.unsqueeze(dim=1)], dim=1)
+        line_segments = torch.cat([
+                                   start_points.unsqueeze(dim=1),
+                                   end_points.unsqueeze(dim=1)
+                                  ], 
+                                  dim=1
+                                 )
 
-        line_segment_candidates = (line_segments.unsqueeze(dim=1)
-                                   + perturb_tensor_flat[None, ...])
+        line_segment_candidates = (line_segments.unsqueeze(dim=1) + perturb_tensor_flat[None, ...])
+        
         # Clip the boundaries
-        line_segment_candidates[..., 0] = torch.clamp(
-            line_segment_candidates[..., 0], min=0, max=H - 1)
-        line_segment_candidates[..., 1] = torch.clamp(
-            line_segment_candidates[..., 1], min=0, max=W - 1)
+        line_segment_candidates[..., 0] = torch.clamp(line_segment_candidates[..., 0], min=0, max=H - 1)
+        line_segment_candidates[..., 1] = torch.clamp(line_segment_candidates[..., 1], min=0, max=W - 1)
 
         # Iterate through all the segments
         refined_segment_lst = []
         num_segments = line_segments.shape[0]
         for idx in range(num_segments):
             segment = line_segment_candidates[idx, ...]
+            
             # Get the corresponding start and end junctions
             candidate_junc_start = segment[:, 0, :]
             candidate_junc_end = segment[:, 1, :]
 
             # Get the sampling locations (N x 64)
             sampler = self.torch_sampler.to(device)[None, ...]
-            cand_samples_h = (candidate_junc_start[:, 0:1] * sampler +
-                              candidate_junc_end[:, 0:1] * (1 - sampler))
-            cand_samples_w = (candidate_junc_start[:, 1:2] * sampler +
-                              candidate_junc_end[:, 1:2] * (1 - sampler))
+            cand_samples_h = (candidate_junc_start[:, 0:1] * sampler + candidate_junc_end[:, 0:1] * (1 - sampler))
+            cand_samples_w = (candidate_junc_start[:, 1:2] * sampler + candidate_junc_end[:, 1:2] * (1 - sampler))
             
             # Clip to image boundary
             cand_h = torch.clamp(cand_samples_h, min=0, max=H - 1)
             cand_w = torch.clamp(cand_samples_w, min=0, max=W - 1)
 
             # Perform bilinear sampling
-            segment_feat = self.detect_bilinear(
-                heatmap, cand_h, cand_w, H, W, device)
+            segment_feat = self.detect_bilinear(heatmap, cand_h, cand_w, H, W, device)
+            
             segment_results = torch.mean(segment_feat, dim=-1)
             max_idx = torch.argmax(segment_results)
             refined_segment_lst.append(segment[max_idx, ...][None, ...])
@@ -454,10 +478,16 @@ class LineSegmentDetectionModule(object):
 
         # Convert back to junctions and line_map
         junctions_new = torch.cat(
-            [refined_segments[:, 0, :], refined_segments[:, 1, :]], dim=0)
+                                    [
+                                     refined_segments[:, 0, :], 
+                                     refined_segments[:, 1, :]
+                                    ], 
+                                    dim=0
+                                )
+        
         junctions_new = torch.unique(junctions_new, dim=0)
-        line_map_new = self.segments_to_line_map(junctions_new,
-                                                 refined_segments)
+        
+        line_map_new = self.segments_to_line_map(junctions_new, refined_segments)
 
         return junctions_new, line_map_new
     
