@@ -320,7 +320,7 @@ class LineSegmentDetectionModule(object):
                 heatmap_output[h_start:h_end, w_start:w_end] += subheatmap
                 count_map[h_start:h_end, w_start:w_end] += 1
                 
-        heatmap_output = torch.clamp(heatmap_output / count_map,　max=1., min=0.)
+        heatmap_output = torch.clamp(heatmap_output / count_map, max=1., min=0.)
 
         return heatmap_output
 
