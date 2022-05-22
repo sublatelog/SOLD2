@@ -20,6 +20,9 @@ min_dist_pts: 10
 # Small jittering of the sampled points during training
 jittering: 0
 
+# max file list length
+max_file_len: 1000
+
 ### Data preprocessing configuration
 preprocessing:
     resize: [512, 512]
