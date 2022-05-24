@@ -1039,8 +1039,12 @@ class WireframeDataset(Dataset):
         valid_mask: torch.int32, 1*H*W range 0 or 1
         """
         
+        
+        print("idx")
+        print(idx)
+        
         # Get the corresponding datapoint and contents from filename dataset
-        file_key = self.datapoints[idx]
+        file_key = self.datapoints[idx-1]
         data_path = self.filename_dataset[file_key]
         
         # Read in the image and npz labels (but haven't applied any transform)
