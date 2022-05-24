@@ -1047,6 +1047,14 @@ class WireframeDataset(Dataset):
         file_key = self.datapoints[idx-1]
         data_path = self.filename_dataset[file_key]
         
+        if self.mode == "test":
+            print("idx")
+            print(idx)
+            print("file_key")
+            print(file_key)
+            print("data_path")
+            print(data_path)
+        
         # Read in the image and npz labels (but haven't applied any transform)
         data = self.get_data_from_path(data_path)
 
