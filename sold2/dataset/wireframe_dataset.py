@@ -1040,9 +1040,7 @@ class WireframeDataset(Dataset):
         """
         
         
-        print("idx")
-        print(idx)
-        
+       
         # Get the corresponding datapoint and contents from filename dataset
         file_key = self.datapoints[idx-1]
         data_path = self.filename_dataset[file_key]
