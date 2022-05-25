@@ -7,7 +7,7 @@ gt_source_train: "wireframe_train_gt.h5"  # Fill with your own export file
 gt_source_test: "wireframe_test_gt.h5"  # Fill with your own export file
 # Return type: (1) single (to train the detector only)
 # or (2) paired_desc (to train the detector + descriptor)
-return_type: "single"
+return_type: "paired_desc" # "single"
 random_seed: 0
 
 ### Descriptor training parameters
